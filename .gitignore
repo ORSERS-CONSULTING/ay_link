@@ -1,38 +1,48 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+# Firebase
+google-services.json
 
-# dependencies
-node_modules/
+# iOS + Android native builds (generated during prebuild or EAS build)
+android/
+ios/
 
-# Expo
+# Expo project settings
 .expo/
-dist/
+.expo-shared/
+
+# Build artifacts
+*.apk
+*.aab
+*.ipa
+
+# Expo web build
 web-build/
-expo-env.d.ts
+dist/
 
-# Native
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
-
-# Metro
-.metro-health-check*
-
-# debug
+# Log files
+*.log
 npm-debug.*
 yarn-debug.*
 yarn-error.*
 
-# macOS
-.DS_Store
+# EAS local config
+*.keystore
+*.pfx
+*.cer
+*.jks
+*.p12
+*.key
 *.pem
 
-# local env files
-.env*.local
+# VSCode
+.vscode/
 
-# typescript
+# macOS
+.DS_Store
+
+# TypeScript
 *.tsbuildinfo
 
-app-example
+# Local env files
+.env
+.env*.local
+node_modules

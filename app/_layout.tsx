@@ -7,6 +7,8 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { usePushNotifications } from '../usePushNotifications'; // ✅ import your hook
+import { Alert } from 'react-native';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -17,11 +19,28 @@ export default function RootLayout() {
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
 
+  const { expoPushToken, notification } = usePushNotifications();
+
   useEffect(() => {
     if (loaded) {
       SplashScreen.hideAsync();
     }
   }, [loaded]);
+
+  useEffect(() => {
+    // Log the full token object
+    console.log('expoPushToken FULL:', expoPushToken);
+    if (expoPushToken?.data) {
+      console.log('Expo Push Token:', expoPushToken.data);
+    }
+  }, [expoPushToken]);
+
+  useEffect(() => {
+    if (notification) {
+      const { title, body } = notification.request.content;
+      Alert.alert(title ?? 'Notification', body ?? 'You received a notification!');
+    }
+  }, [notification]);
 
   if (!loaded) {
     return null;
