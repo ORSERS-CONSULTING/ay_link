@@ -12,7 +12,7 @@ export interface PushNotificationState {
 export const usePushNotifications = (): PushNotificationState => {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
-      shouldPlaySound: false,
+      shouldPlaySound: true,
       shouldShowAlert: true,
       shouldSetBadge: false,
     }),
@@ -31,7 +31,8 @@ export const usePushNotifications = (): PushNotificationState => {
   async function registerForPushNotificationsAsync() {
     let token;
     if (Device.isDevice) {
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      const { status: existingStatus } =
+        await Notifications.getPermissionsAsync();
       console.log("📲 Notification existing permission:", existingStatus);
 
       let finalStatus = existingStatus;
@@ -68,6 +69,8 @@ export const usePushNotifications = (): PushNotificationState => {
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: "#FF231F7C",
+        sound: "default", // ✅ this is critical
+        lockscreenVisibility: 1, // shows content on lock screen
       });
     }
 
@@ -83,6 +86,10 @@ export const usePushNotifications = (): PushNotificationState => {
       Notifications.addNotificationReceivedListener((notification) => {
         console.log("📥 Notification received:", notification);
         setNotification(notification);
+
+        // Optional: Show your own in-app alert
+        const { title, body } = notification.request.content;
+        alert(`${title}\n\n${body}`);
       });
 
     responseListener.current =
@@ -94,9 +101,7 @@ export const usePushNotifications = (): PushNotificationState => {
       Notifications.removeNotificationSubscription(
         notificationListener.current!
       );
-      Notifications.removeNotificationSubscription(
-        responseListener.current!
-      );
+      Notifications.removeNotificationSubscription(responseListener.current!);
     };
   }, []);
 
