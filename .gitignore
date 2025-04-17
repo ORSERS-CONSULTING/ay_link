@@ -1,6 +1,6 @@
 # Firebase
 # If you're okay with committing google-services.json, keep this line commented
-google-services.json
+!google-services.json
 
 # Native platforms
 android/

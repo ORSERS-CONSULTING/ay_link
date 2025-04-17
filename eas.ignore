@@ -1,5 +1,3 @@
-
-
 # Native platforms
 android/
 ios/
@@ -19,8 +17,8 @@ dist/
 
 # Logs
 *.log
-npm-debug.*
-yarn-debug.*
+npm-debug.* 
+yarn-debug.* 
 yarn-error.*
 
 # EAS credentials and sensitive files
@@ -50,3 +48,6 @@ node_modules/
 
 # Expo auto-generated typings
 expo-env.d.ts
+
+# ✅ INCLUDE google-services.json
+!google-services.json
