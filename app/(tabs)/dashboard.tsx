@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import Toast from "react-native-toast-message";
 import { useRouter } from "expo-router";
 import { StyleSheet } from "react-native";
+import { useNotification } from "@/context/NotificationContext";
 
 type Client = {
   id: string;
@@ -56,6 +57,7 @@ const initialData: Client[] = [
 
 export default function DashboardScreen() {
   const router = useRouter();
+  const { expoPushToken, notification } = useNotification(); // ✅ added
   const [search, setSearch] = useState("");
   const [clients, setClients] = useState(initialData);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -82,14 +84,20 @@ export default function DashboardScreen() {
     new Date(d1).toDateString() === new Date(d2).toDateString();
 
   const filteredData = clients.filter((item) => {
-    const matchesSearch = item.clientName.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = item.clientName
+      .toLowerCase()
+      .includes(search.toLowerCase());
     const isPending = item.status === "Pending";
-    const matchesDate = selectedDate ? isSameDate(item.timestamp, selectedDate) : true;
+    const matchesDate = selectedDate
+      ? isSameDate(item.timestamp, selectedDate)
+      : true;
     return matchesSearch && isPending && matchesDate;
   });
 
   const filteredSummaryClients = useMemo(() => {
-    return selectedDate ? clients.filter((c) => isSameDate(c.timestamp, selectedDate)) : clients;
+    return selectedDate
+      ? clients.filter((c) => isSameDate(c.timestamp, selectedDate))
+      : clients;
   }, [clients, selectedDate]);
 
   const totalIncreasedAmount = useMemo(() => {
@@ -129,11 +137,11 @@ export default function DashboardScreen() {
         <Text style={styles.label}>Requested Amount:</Text>
         <Text style={styles.value}>AED {item.requestedAmount}</Text>
       </TouchableOpacity>
-  
+
       <View style={styles.statusRow}>
         <Text style={[styles.status, styles.pending]}>{item.status}</Text>
         <Text style={styles.timestamp}>Submitted: {item.timestamp}</Text>
-  
+
         <View style={styles.actionButtons}>
           <TouchableOpacity
             style={[styles.iconButton, { backgroundColor: "#28A745" }]}
@@ -159,94 +167,124 @@ export default function DashboardScreen() {
       </View>
     </View>
   );
-  
-
-
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar hidden />
 
-      <Modal
-  transparent
-  animationType="fade"
-  visible={showConfirm}
-  onRequestClose={() => setShowConfirm(false)}
->
-  <View style={styles.modalOverlay}>
-    <View style={styles.confirmModal}>
-      <Text style={styles.confirmText}>
-        Are you sure you want to{" "}
-        {selectedAction === "accept" ? "approve" : "reject"} the request for{" "}
-        {selectedClient?.clientName}?
-      </Text>
+      {/* ✅ Push Notification Info */}
+      <View
+        style={{
+          backgroundColor: "#fff",
+          padding: 12,
+          borderRadius: 10,
+          marginBottom: 16,
+        }}
+      >
+        <Text style={{ fontWeight: "bold", fontSize: 16 }}>
+          Expo Push Token:
+        </Text>
+        <Text selectable style={{ fontSize: 12, color: "#555" }}>
+          {expoPushToken ?? "Not available"}
+        </Text>
 
-      {selectedAction === "reject" && (
-        <TextInput
-          placeholder="Optional: reason for rejection"
-          placeholderTextColor="#999"
-          style={styles.rejectionInput}
-          value={rejectionNote}
-          onChangeText={setRejectionNote}
-          multiline
-        />
-      )}
-
-      <View style={styles.confirmActions}>
-        <TouchableOpacity
-          style={[styles.confirmBtn, { backgroundColor: "#28A745" }]}
-          onPress={() => {
-            if (!selectedClient) return;
-
-            const updatedClients = clients.map((client) =>
-              client.id === selectedClient.id
-                ? {
-                    ...client,
-                    status:
-  (selectedAction === "accept" ? "Approved" : "Rejected") as Client["status"],
-                    rejectionNote:
-                      selectedAction === "reject" && rejectionNote.trim()
-                        ? rejectionNote.trim()
-                        : undefined,
-                  }
-                : client
-            );
-
-            setClients(updatedClients);
-            setShowConfirm(false);
-            setRejectionNote("");
-            setSelectedClient(null);
-            setSelectedAction("");
-            Toast.show({
-              type: "success",
-              text1: `Request ${
-                selectedAction === "accept" ? "approved" : "rejected"
-              } successfully!`,
-            });
-          }}
-        >
-          <Text style={{ color: "#fff", fontWeight: "bold" }}>Yes</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.confirmBtn, { backgroundColor: "#DC3545" }]}
-          onPress={() => {
-            setShowConfirm(false);
-            setRejectionNote("");
-            setSelectedClient(null);
-            setSelectedAction("");
-            Toast.show({
-              type: "info",
-              text1: "Action cancelled.",
-            });
-          }}
-        >
-          <Text style={{ color: "#fff", fontWeight: "bold" }}>Cancel</Text>
-        </TouchableOpacity>
+        {notification && (
+          <>
+            <Text style={{ fontWeight: "bold", fontSize: 16, marginTop: 10 }}>
+              Latest Notification:
+            </Text>
+            <Text style={{ fontSize: 14, color: "#333" }}>
+              {notification.request.content.title}
+            </Text>
+            <Text style={{ fontSize: 13, color: "#666" }}>
+              {notification.request.content.body}
+            </Text>
+          </>
+        )}
       </View>
-    </View>
-  </View>
-</Modal>
+      <Modal
+        transparent
+        animationType="fade"
+        visible={showConfirm}
+        onRequestClose={() => setShowConfirm(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.confirmModal}>
+            <Text style={styles.confirmText}>
+              Are you sure you want to{" "}
+              {selectedAction === "accept" ? "approve" : "reject"} the request
+              for {selectedClient?.clientName}?
+            </Text>
+
+            {selectedAction === "reject" && (
+              <TextInput
+                placeholder="Optional: reason for rejection"
+                placeholderTextColor="#999"
+                style={styles.rejectionInput}
+                value={rejectionNote}
+                onChangeText={setRejectionNote}
+                multiline
+              />
+            )}
+
+            <View style={styles.confirmActions}>
+              <TouchableOpacity
+                style={[styles.confirmBtn, { backgroundColor: "#28A745" }]}
+                onPress={() => {
+                  if (!selectedClient) return;
+
+                  const updatedClients = clients.map((client) =>
+                    client.id === selectedClient.id
+                      ? {
+                          ...client,
+                          status: (selectedAction === "accept"
+                            ? "Approved"
+                            : "Rejected") as Client["status"],
+                          rejectionNote:
+                            selectedAction === "reject" && rejectionNote.trim()
+                              ? rejectionNote.trim()
+                              : undefined,
+                        }
+                      : client
+                  );
+
+                  setClients(updatedClients);
+                  setShowConfirm(false);
+                  setRejectionNote("");
+                  setSelectedClient(null);
+                  setSelectedAction("");
+                  Toast.show({
+                    type: "success",
+                    text1: `Request ${
+                      selectedAction === "accept" ? "approved" : "rejected"
+                    } successfully!`,
+                  });
+                }}
+              >
+                <Text style={{ color: "#fff", fontWeight: "bold" }}>Yes</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.confirmBtn, { backgroundColor: "#DC3545" }]}
+                onPress={() => {
+                  setShowConfirm(false);
+                  setRejectionNote("");
+                  setSelectedClient(null);
+                  setSelectedAction("");
+                  Toast.show({
+                    type: "info",
+                    text1: "Action cancelled.",
+                  });
+                }}
+              >
+                <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Summary Cards */}
       <View style={styles.summaryContainer}>
@@ -279,8 +317,13 @@ export default function DashboardScreen() {
         </TouchableOpacity>
 
         {selectedDate && (
-          <TouchableOpacity onPress={() => setSelectedDate(null)} style={{ marginTop: 4 }}>
-            <Text style={{ color: "#aaa", fontSize: 12 }}>Clear Date Filter</Text>
+          <TouchableOpacity
+            onPress={() => setSelectedDate(null)}
+            style={{ marginTop: 4 }}
+          >
+            <Text style={{ color: "#aaa", fontSize: 12 }}>
+              Clear Date Filter
+            </Text>
           </TouchableOpacity>
         )}
       </View>
@@ -503,6 +546,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 8,
   },
-  
-  
 });

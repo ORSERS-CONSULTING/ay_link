@@ -11,43 +11,46 @@ import { useEffect } from "react";
 import "react-native-reanimated";
 
 import { useColorScheme } from "@/hooks/useColorScheme";
-import { usePushNotifications } from "../usePushNotifications"; // ✅ import your hook
 import { Alert } from "react-native";
+import { NotificationProvider, useNotification } from "@/context/NotificationContext";
+import * as Notifications from "expo-notifications";
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldPlaySound: true,
+    shouldShowAlert: true,
+    shouldSetBadge: false,
+  }),
+});
+
 SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
+function RootLayoutContent() {
   const colorScheme = useColorScheme();
   const [loaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
 
-  const { expoPushToken, notification } = usePushNotifications();
+  const { expoPushToken, notification } = useNotification();
 
   useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
+    if (loaded) SplashScreen.hideAsync();
   }, [loaded]);
 
   useEffect(() => {
-    if (!expoPushToken?.data) return;
+    if (!expoPushToken) return;
 
-    console.log("expoPushToken FULL:", expoPushToken);
-    console.log("Expo Push Token:", expoPushToken.data);
+    console.log("Expo Push Token FULL:", expoPushToken);
 
     const registerToken = async () => {
       const url = `https://yawrhzry16j0fw1-adtgsw3okapc1zpw.adb.me-dubai-1.oraclecloudapps.com/ords/aly_sandbox/credit_notify_api/register/?expo_token=${encodeURIComponent(
-        expoPushToken.data
+        expoPushToken
       )}`;
 
       try {
         const response = await fetch(url, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
         });
 
         if (response.ok) {
@@ -66,16 +69,11 @@ export default function RootLayout() {
   useEffect(() => {
     if (notification) {
       const { title, body } = notification.request.content;
-      Alert.alert(
-        title ?? "Notification",
-        body ?? "You received a notification!"
-      );
+      Alert.alert(title ?? "Notification", body ?? "You received a notification!");
     }
   }, [notification]);
 
-  if (!loaded) {
-    return null;
-  }
+  if (!loaded) return null;
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
@@ -85,5 +83,13 @@ export default function RootLayout() {
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <NotificationProvider>
+      <RootLayoutContent />
+    </NotificationProvider>
   );
 }
