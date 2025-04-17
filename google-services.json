@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "785061223599",
+    "project_id": "creditapp2-7ddd6",
+    "storage_bucket": "creditapp2-7ddd6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:785061223599:android:c802231c7a798828b7085a",
+        "android_client_info": {
+          "package_name": "com.tenioduola.creditApp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCnWZnXK6J_UizENM632Rupecy3zqtSl0U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
