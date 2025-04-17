@@ -1,19 +1,8 @@
 # Firebase
+# If you're okay with committing google-services.json, keep this line commented
 # google-services.json
 
-# Ignore everything in android but explicitly allow required files
-android/*
-!android/gradlew
-!android/gradlew.bat
-!android/build.gradle
-!android/settings.gradle
-!android/gradle/**
-!android/app/
-!android/app/build.gradle
-!android/app/proguard-rules.pro
-!android/app/src/**
-!android/app/google-services.json
-
+# iOS (if not targeting iOS right now)
 ios/
 
 # Expo project settings
