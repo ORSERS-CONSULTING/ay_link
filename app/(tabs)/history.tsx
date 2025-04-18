@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -14,53 +14,71 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { fetchClientRequests } from "@/utils/api";
+import Toast from "react-native-toast-message";
 
-const dummyLogs = [
-  {
-    id: "1",
-    clientName: "Client A",
-    requestedAmount: 500,
-    currentBalance: 1000,
-    status: "Approved",
-    timestamp: "2025-04-07 10:00",
-    decisionTime: "2025-04-07 10:30",
-    rejectionNote: "",
-    approver: "John Doe",
-  },
-  {
-    id: "2",
-    clientName: "Client B",
-    requestedAmount: 700,
-    currentBalance: 800,
-    status: "Rejected",
-    timestamp: "2025-04-06 14:30",
-    decisionTime: "2025-04-06 15:00",
-    rejectionNote: "Insufficient history.",
-    approver: "Jane Smith",
-  },
-  {
-    id: "3",
-    clientName: "Client C",
-    requestedAmount: 1000,
-    currentBalance: 200,
-    status: "Pending",
-    timestamp: "2025-04-05 09:15",
-    decisionTime: "",
-    rejectionNote: "",
-    approver: "",
-  },
-];
+const statuses = ["All", "Approved", "Rejected"];
 
-const statuses = ["All", "Approved", "Rejected", "Pending"];
+type Log = {
+  id: string;
+  clientName: string;
+  requestedAmount: number;
+  currentBalance: number;
+  status: "Approved" | "Rejected" | "Pending";
+  timestamp: string;
+  decisionTime: string;
+  rejectionNote: string;
+  approver: string;
+};
 
 export default function HistoryScreen() {
+  const [logs, setLogs] = useState<Log[]>([]);
   const [filter, setFilter] = useState("All");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [search, setSearch] = useState("");
   const router = useRouter();
 
-  const filteredLogs = dummyLogs.filter((log) => {
+  const getLogs = async () => {
+    try {
+      const response = await fetchClientRequests();
+
+      const filteredResponse = response.filter(
+        (item: any) =>
+          item.status?.toLowerCase() === "approved" ||
+          item.status?.toLowerCase() === "rejected"
+      );
+
+      const formatted: Log[] = filteredResponse.map((item: any) => ({
+        id: item.request_id.toString(),
+        clientName: item.company_name,
+        requestedAmount: item.credit_amount,
+        currentBalance: 0, // Optional if not provided
+        status: capitalize(item.status),
+        timestamp: item.requested_at,
+        decisionTime: item.decision_time || "",
+        approver: item.approver || "",
+        rejectionNote: item.rejection_comment || "",
+      }));
+
+      setLogs(formatted);
+    } catch (e) {
+      Toast.show({ type: "error", text1: "Failed to load history logs." });
+    }
+  };
+
+  getLogs();
+
+  useEffect(() => {
+    getLogs();
+    const interval = setInterval(getLogs, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const capitalize = (text: string | undefined | null) =>
+    text ? text.charAt(0).toUpperCase() + text.slice(1).toLowerCase() : "";
+
+  const filteredLogs = logs.filter((log) => {
     const matchesSearch = log.clientName
       .toLowerCase()
       .includes(search.toLowerCase());
@@ -111,7 +129,7 @@ export default function HistoryScreen() {
     const { uri } = await Print.printToFileAsync({ html });
     await Sharing.shareAsync(uri);
   };
-  type Log = (typeof dummyLogs)[0];
+  // type Log = (typeof dummyLogs)[0];
 
   const renderItem = ({ item }: { item: Log }) => (
     <TouchableOpacity

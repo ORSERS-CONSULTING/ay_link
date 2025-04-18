@@ -1,22 +1,26 @@
-import React, { useState, useRef, useEffect, useMemo } from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  SafeAreaView,
-  TextInput,
-  StatusBar,
-  Platform,
-  Modal,
-  Animated,
-} from "react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
-import Toast from "react-native-toast-message";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
-import { StyleSheet } from "react-native";
-import { useNotification } from "@/context/NotificationContext";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Animated,
+  FlatList,
+  Modal,
+  Platform,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import Toast from "react-native-toast-message";
+import {
+  fetchClientRequests,
+  approveRequest,
+  rejectRequest,
+} from "@/utils/api";
 
 type Client = {
   id: string;
@@ -28,45 +32,45 @@ type Client = {
   rejectionNote?: string;
 };
 
-const initialData: Client[] = [
-  {
-    id: "1",
-    clientName: "Client A",
-    currentBalance: 1000,
-    requestedAmount: 500,
-    status: "Pending",
-    timestamp: "2025-04-07 10:00",
-  },
-  {
-    id: "2",
-    clientName: "Client B",
-    currentBalance: 1500,
-    requestedAmount: 700,
-    status: "Approved",
-    timestamp: "2025-04-06 14:30",
-  },
-  {
-    id: "3",
-    clientName: "Client C",
-    currentBalance: 200,
-    requestedAmount: 1000,
-    status: "Rejected",
-    timestamp: "2025-04-05 09:15",
-  },
-];
-
 export default function DashboardScreen() {
   const router = useRouter();
-  const { expoPushToken, notification } = useNotification(); // ✅ added
   const [search, setSearch] = useState("");
-  const [clients, setClients] = useState(initialData);
+  const [clients, setClients] = useState<Client[]>([]);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [selectedAction, setSelectedAction] = useState("");
+  const [selectedAction, setSelectedAction] = useState<
+    "accept" | "reject" | ""
+  >("");
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [rejectionNote, setRejectionNote] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  const loadClients = async () => {
+    try {
+      const response = await fetchClientRequests();
+      const formatted: Client[] = response
+        .filter((item: any) => item.status === "PENDING")
+        .map((item: any) => ({
+          id: item.request_id.toString(),
+          clientName: item.company_name,
+          currentBalance: 0,
+          requestedAmount: item.credit_amount,
+          status: capitalize(item.status),
+          timestamp: item.requested_at,
+          rejectionNote: item.rejection_comment || "",
+        }));
+      setClients(formatted);
+    } catch (e) {
+      Toast.show({ type: "error", text1: "Failed to load requests." });
+    }
+  };
+
+  useEffect(() => {
+    loadClients();
+    const interval = setInterval(loadClients, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (showConfirm) {
@@ -80,6 +84,53 @@ export default function DashboardScreen() {
     }
   }, [showConfirm]);
 
+  const handleConfirmAction = async () => {
+    if (!selectedClient) return;
+
+    try {
+      if (selectedAction === "accept") {
+        await approveRequest(selectedClient.id);
+      } else if (selectedAction === "reject") {
+        await rejectRequest(
+          selectedClient.id,
+          rejectionNote.trim() || "No comment"
+        );
+      }
+
+      setClients((prev) =>
+        prev.map((client) =>
+          client.id === selectedClient.id
+            ? {
+                ...client,
+                status: selectedAction === "accept" ? "Approved" : "Rejected",
+                rejectionNote:
+                  selectedAction === "reject" && rejectionNote.trim()
+                    ? rejectionNote.trim()
+                    : undefined,
+              }
+            : client
+        )
+      );
+
+      Toast.show({
+        type: "success",
+        text1: `Request ${
+          selectedAction === "accept" ? "approved" : "rejected"
+        } successfully!`,
+      });
+    } catch (error) {
+      Toast.show({
+        type: "error",
+        text1: `Failed to ${selectedAction} request.`,
+      });
+    }
+
+    setShowConfirm(false);
+    setSelectedClient(null);
+    setSelectedAction("");
+    setRejectionNote("");
+  };
+
   const isSameDate = (d1: string, d2: Date) =>
     new Date(d1).toDateString() === new Date(d2).toDateString();
 
@@ -87,11 +138,10 @@ export default function DashboardScreen() {
     const matchesSearch = item.clientName
       .toLowerCase()
       .includes(search.toLowerCase());
-    const isPending = item.status === "Pending";
     const matchesDate = selectedDate
       ? isSameDate(item.timestamp, selectedDate)
       : true;
-    return matchesSearch && isPending && matchesDate;
+    return matchesSearch && item.status === "Pending" && matchesDate;
   });
 
   const filteredSummaryClients = useMemo(() => {
@@ -122,8 +172,8 @@ export default function DashboardScreen() {
             pathname: "/request-detail-screen",
             params: {
               clientName: item.clientName,
-              currentBalance: item.currentBalance,
-              requestedAmount: item.requestedAmount,
+              currentBalance: item.currentBalance.toString(),
+              requestedAmount: item.requestedAmount.toString(),
               status: item.status,
               timestamp: item.timestamp,
               rejectionNote: item.rejectionNote || "",
@@ -132,8 +182,6 @@ export default function DashboardScreen() {
         }
       >
         <Text style={styles.clientName}>{item.clientName}</Text>
-        <Text style={styles.label}>Current Balance:</Text>
-        <Text style={styles.value}>AED {item.currentBalance}</Text>
         <Text style={styles.label}>Requested Amount:</Text>
         <Text style={styles.value}>AED {item.requestedAmount}</Text>
       </TouchableOpacity>
@@ -171,37 +219,7 @@ export default function DashboardScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar hidden />
-
-      {/* ✅ Push Notification Info */}
-      <View
-        style={{
-          backgroundColor: "#fff",
-          padding: 12,
-          borderRadius: 10,
-          marginBottom: 16,
-        }}
-      >
-        <Text style={{ fontWeight: "bold", fontSize: 16 }}>
-          Expo Push Token:
-        </Text>
-        <Text selectable style={{ fontSize: 12, color: "#555" }}>
-          {expoPushToken ?? "Not available"}
-        </Text>
-
-        {notification && (
-          <>
-            <Text style={{ fontWeight: "bold", fontSize: 16, marginTop: 10 }}>
-              Latest Notification:
-            </Text>
-            <Text style={{ fontSize: 14, color: "#333" }}>
-              {notification.request.content.title}
-            </Text>
-            <Text style={{ fontSize: 13, color: "#666" }}>
-              {notification.request.content.body}
-            </Text>
-          </>
-        )}
-      </View>
+      {/* Confirm Modal */}
       <Modal
         transparent
         animationType="fade"
@@ -215,7 +233,6 @@ export default function DashboardScreen() {
               {selectedAction === "accept" ? "approve" : "reject"} the request
               for {selectedClient?.clientName}?
             </Text>
-
             {selectedAction === "reject" && (
               <TextInput
                 placeholder="Optional: reason for rejection"
@@ -226,55 +243,20 @@ export default function DashboardScreen() {
                 multiline
               />
             )}
-
             <View style={styles.confirmActions}>
               <TouchableOpacity
                 style={[styles.confirmBtn, { backgroundColor: "#28A745" }]}
-                onPress={() => {
-                  if (!selectedClient) return;
-
-                  const updatedClients = clients.map((client) =>
-                    client.id === selectedClient.id
-                      ? {
-                          ...client,
-                          status: (selectedAction === "accept"
-                            ? "Approved"
-                            : "Rejected") as Client["status"],
-                          rejectionNote:
-                            selectedAction === "reject" && rejectionNote.trim()
-                              ? rejectionNote.trim()
-                              : undefined,
-                        }
-                      : client
-                  );
-
-                  setClients(updatedClients);
-                  setShowConfirm(false);
-                  setRejectionNote("");
-                  setSelectedClient(null);
-                  setSelectedAction("");
-                  Toast.show({
-                    type: "success",
-                    text1: `Request ${
-                      selectedAction === "accept" ? "approved" : "rejected"
-                    } successfully!`,
-                  });
-                }}
+                onPress={handleConfirmAction}
               >
                 <Text style={{ color: "#fff", fontWeight: "bold" }}>Yes</Text>
               </TouchableOpacity>
-
               <TouchableOpacity
                 style={[styles.confirmBtn, { backgroundColor: "#DC3545" }]}
                 onPress={() => {
                   setShowConfirm(false);
-                  setRejectionNote("");
                   setSelectedClient(null);
                   setSelectedAction("");
-                  Toast.show({
-                    type: "info",
-                    text1: "Action cancelled.",
-                  });
+                  setRejectionNote("");
                 }}
               >
                 <Text style={{ color: "#fff", fontWeight: "bold" }}>
@@ -285,6 +267,42 @@ export default function DashboardScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Date Filter */}
+      <View style={{ alignItems: "center", marginBottom: 10 }}>
+        <TouchableOpacity
+          onPress={() => setShowDatePicker(true)}
+          style={styles.dateFilterButton}
+        >
+          <Ionicons name="calendar-outline" size={16} color="#1E1E4B" />
+          <Text style={styles.dateFilterText}>
+            {selectedDate
+              ? ` ${selectedDate.toLocaleDateString()}`
+              : " Filter by Date"}
+          </Text>
+        </TouchableOpacity>
+        {selectedDate && (
+          <TouchableOpacity
+            onPress={() => setSelectedDate(null)}
+            style={{ marginTop: 4 }}
+          >
+            <Text style={{ color: "#aaa", fontSize: 12 }}>
+              Clear Date Filter
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      {showDatePicker && (
+        <DateTimePicker
+          value={new Date()}
+          mode="date"
+          display={Platform.OS === "ios" ? "spinner" : "default"}
+          onChange={(event, date) => {
+            setShowDatePicker(false);
+            if (date) setSelectedDate(date);
+          }}
+        />
+      )}
 
       {/* Summary Cards */}
       <View style={styles.summaryContainer}>
@@ -302,45 +320,6 @@ export default function DashboardScreen() {
         </View>
       </View>
 
-      {/* Filter by Date */}
-      <View style={{ alignItems: "center", marginBottom: 10 }}>
-        <TouchableOpacity
-          onPress={() => setShowDatePicker(true)}
-          style={styles.dateFilterButton}
-        >
-          <Ionicons name="calendar-outline" size={16} color="#1E1E4B" />
-          <Text style={styles.dateFilterText}>
-            {selectedDate
-              ? ` ${selectedDate.toLocaleDateString()}`
-              : " Filter by Date"}
-          </Text>
-        </TouchableOpacity>
-
-        {selectedDate && (
-          <TouchableOpacity
-            onPress={() => setSelectedDate(null)}
-            style={{ marginTop: 4 }}
-          >
-            <Text style={{ color: "#aaa", fontSize: 12 }}>
-              Clear Date Filter
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {showDatePicker && (
-        <DateTimePicker
-          value={new Date()}
-          mode="date"
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          onChange={(event, date) => {
-            setShowDatePicker(false);
-            if (date) setSelectedDate(date);
-          }}
-        />
-      )}
-
-      {/* Search */}
       <TextInput
         placeholder="Search by client name..."
         placeholderTextColor="#aaa"
@@ -349,7 +328,6 @@ export default function DashboardScreen() {
         onChangeText={setSearch}
       />
 
-      {/* Pending Requests Section */}
       {filteredData.length > 0 && (
         <Text style={styles.sectionTitle}>Pending Requests</Text>
       )}
@@ -365,6 +343,11 @@ export default function DashboardScreen() {
     </SafeAreaView>
   );
 }
+
+const capitalize = (text: string) =>
+  text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
+
+// styles stay unchanged unless you need help cleaning them up too
 
 const styles = StyleSheet.create({
   container: {

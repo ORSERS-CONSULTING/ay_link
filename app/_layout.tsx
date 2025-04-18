@@ -9,11 +9,14 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import "react-native-reanimated";
+import { Alert } from "react-native";
+import * as Notifications from "expo-notifications";
 
 import { useColorScheme } from "@/hooks/useColorScheme";
-import { Alert } from "react-native";
-import { NotificationProvider, useNotification } from "@/context/NotificationContext";
-import * as Notifications from "expo-notifications";
+import {
+  NotificationProvider,
+  useNotification,
+} from "@/context/NotificationContext";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -30,7 +33,6 @@ function RootLayoutContent() {
   const [loaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
-
   const { expoPushToken, notification } = useNotification();
 
   useEffect(() => {
@@ -40,26 +42,21 @@ function RootLayoutContent() {
   useEffect(() => {
     if (!expoPushToken) return;
 
-    console.log("Expo Push Token FULL:", expoPushToken);
-
     const registerToken = async () => {
       const url = `https://yawrhzry16j0fw1-adtgsw3okapc1zpw.adb.me-dubai-1.oraclecloudapps.com/ords/aly_sandbox/credit_notify_api/register/?expo_token=${encodeURIComponent(
         expoPushToken
       )}`;
-
       try {
-        const response = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-        });
-
+        const response = await fetch(url, { method: "POST" });
         if (response.ok) {
           console.log("✅ Token registered successfully with Oracle");
+        } else if ([409, 500, 555].includes(response.status)) {
+          console.log("⚠️ Token already exists (duplicate)");
         } else {
           console.log("❌ Failed to register token:", response.status);
         }
       } catch (error) {
-        console.error("❌ Error while registering token:", error);
+        console.error("❌ Registration error:", error);
       }
     };
 
@@ -69,7 +66,7 @@ function RootLayoutContent() {
   useEffect(() => {
     if (notification) {
       const { title, body } = notification.request.content;
-      Alert.alert(title ?? "Notification", body ?? "You received a notification!");
+      Alert.alert(title ?? "Notification", body ?? "New notification received");
     }
   }, [notification]);
 
@@ -79,6 +76,7 @@ function RootLayoutContent() {
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="auto" />
