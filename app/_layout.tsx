@@ -17,6 +17,7 @@ import {
   NotificationProvider,
   useNotification,
 } from "@/context/NotificationContext";
+import { ChartDataProvider } from "@/context/ChartDataContext";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -87,7 +88,9 @@ function RootLayoutContent() {
 export default function RootLayout() {
   return (
     <NotificationProvider>
-      <RootLayoutContent />
+      <ChartDataProvider>
+        <RootLayoutContent />
+      </ChartDataProvider>
     </NotificationProvider>
   );
 }

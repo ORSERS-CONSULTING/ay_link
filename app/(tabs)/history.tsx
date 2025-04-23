@@ -39,40 +39,41 @@ export default function HistoryScreen() {
   const [search, setSearch] = useState("");
   const router = useRouter();
 
-  const getLogs = async () => {
-    try {
-      const response = await fetchClientRequests();
-
-      const filteredResponse = response.filter(
-        (item: any) =>
-          item.status?.toLowerCase() === "approved" ||
-          item.status?.toLowerCase() === "rejected"
-      );
-
-      const formatted: Log[] = filteredResponse.map((item: any) => ({
-        id: item.request_id.toString(),
-        clientName: item.company_name,
-        requestedAmount: item.credit_amount,
-        currentBalance: 0, // Optional if not provided
-        status: capitalize(item.status),
-        timestamp: item.requested_at,
-        decisionTime: item.decision_time || "",
-        approver: item.approver || "",
-        rejectionNote: item.rejection_comment || "",
-      }));
-
-      setLogs(formatted);
-    } catch (e) {
-      Toast.show({ type: "error", text1: "Failed to load history logs." });
-    }
-  };
-
-  getLogs();
-
   useEffect(() => {
+    const getLogs = async () => {
+      try {
+        const response = await fetchClientRequests();
+
+        const filteredResponse = response.filter(
+          (item: any) =>
+            item.status?.toLowerCase() === "approved" ||
+            item.status?.toLowerCase() === "rejected"
+        );
+
+        const formatted: Log[] = filteredResponse.map((item: any) => ({
+          id: item.request_id.toString(),
+          clientName: item.company_name,
+          requestedAmount: item.credit_amount,
+          currentBalance: 0, // Optional if not provided
+          status: capitalize(item.status),
+          timestamp: item.requested_at,
+          decisionTime: item.decision_time || "",
+          approver: item.approver || "",
+          rejectionNote: item.rejection_comment || "",
+        }));
+
+        setLogs(
+          formatted.sort(
+            (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+          )
+        );
+        
+      } catch (e) {
+        Toast.show({ type: "error", text1: "Failed to load history logs." });
+      }
+    };
+
     getLogs();
-    const interval = setInterval(getLogs, 5000);
-    return () => clearInterval(interval);
   }, []);
 
   const capitalize = (text: string | undefined | null) =>
@@ -111,8 +112,15 @@ export default function HistoryScreen() {
                 (log) => `
                   <tr>
                     <td>${log.clientName}</td>
-                    <td>AED ${log.requestedAmount}</td>
-                    <td>AED ${log.currentBalance}</td>
+                    <td>AED ${log.requestedAmount.toLocaleString("en-US", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})}</td>
+<td>AED ${log.currentBalance.toLocaleString("en-US", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})}</td>
+
                     <td>${log.status}</td>
                     <td>${log.timestamp}</td>
                     <td>${log.decisionTime || "-"}</td>
@@ -155,8 +163,12 @@ export default function HistoryScreen() {
         <View>
           <Text style={styles.clientName}>{item.clientName}</Text>
           <Text style={styles.label}>
-            Requested: AED {item.requestedAmount}
-          </Text>
+  Requested: AED {item.requestedAmount.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}
+</Text>
+
           <Text
             style={[
               styles.label,

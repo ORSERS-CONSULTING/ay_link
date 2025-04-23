@@ -11,7 +11,8 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from 'expo-linear-gradient';
+import { LinearGradient } from "expo-linear-gradient";
+import { Image } from "react-native";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -49,27 +50,45 @@ export default function LoginScreen() {
 
     if (email === "oduolateniola@gmail.com" && password === "12345678") {
       Alert.alert("Login Success", "Welcome!");
-      router.replace("/(tabs)/dashboard");
+      router.replace("/(tabs)/home");
     } else {
       const remaining = attemptsLeft - 1;
       setAttemptsLeft(remaining);
       if (remaining <= 0) {
         setBlocked(true);
-        Alert.alert("Login Blocked", "You have exceeded the maximum number of login attempts.");
+        Alert.alert(
+          "Login Blocked",
+          "You have exceeded the maximum number of login attempts."
+        );
       } else {
-        Alert.alert("Login Failed", `Incorrect credentials. ${remaining} attempt(s) left.`);
+        Alert.alert(
+          "Login Failed",
+          `Incorrect credentials. ${remaining} attempt(s) left.`
+        );
       }
     }
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <Animated.View style={[styles.card, { transform: [{ translateY: cardAnim }] }]}>
-        <Text style={styles.title}>Login</Text>
+      <Image
+        source={require("@/assets/images/alyalayis-logo.png")}
+        style={styles.logo}
+      />
+
+      <Animated.View
+        style={[styles.card, { transform: [{ translateY: cardAnim }] }]}
+      >
+        {/* <Text style={styles.title}>Login</Text> */}
 
         {/* Email Field */}
         <View style={styles.inputWrapper}>
-          <Ionicons name="mail-outline" size={20} color="#888" style={styles.leftIcon} />
+          <Ionicons
+            name="mail-outline"
+            size={20}
+            color="#888"
+            style={styles.leftIcon}
+          />
           <TextInput
             style={styles.input}
             placeholder="Email"
@@ -83,7 +102,12 @@ export default function LoginScreen() {
 
         {/* Password Field */}
         <View style={styles.inputWrapper}>
-          <Ionicons name="lock-closed-outline" size={20} color="#888" style={styles.leftIcon} />
+          <Ionicons
+            name="lock-closed-outline"
+            size={20}
+            color="#888"
+            style={styles.leftIcon}
+          />
           <TextInput
             style={styles.input}
             placeholder="Password"
@@ -121,21 +145,21 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#1E1E4B",
+    backgroundColor: "#fff",
     justifyContent: "center",
     alignItems: "center",
     padding: 16,
   },
   card: {
-    backgroundColor: "#fff",
+    // backgroundColor: "#fff",
     borderRadius: 20,
     padding: 24,
     width: "100%",
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 6,
+    // shadowColor: "#000",
+    // shadowOpacity: 0.1,
+    // shadowRadius: 10,
+    // shadowOffset: { width: 0, height: 5 },
+    // elevation: 6,
   },
   title: {
     fontSize: 24,
@@ -174,5 +198,11 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "bold",
     fontSize: 16,
+  },
+  logo: {
+    width: 250,
+    height: 250,
+    resizeMode: "contain",
+    // marginBottom: 10,
   },
 });
