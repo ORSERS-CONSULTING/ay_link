@@ -74,17 +74,17 @@ export default function HomeScreen() {
           .filter((item: any) => item.status === "PENDING")
           .map((item: any) => ({
             id: item.request_id.toString(),
-          clientName: item.company_name.replace(/^\s+/, ""),
-          currentBalance: 0,
-          requestedAmount: item.credit_amount,
-          status: capitalize(item.status),
-          timestamp: item.requested_at,
-          rejectionNote: item.rejection_comment || "",
-          reason: item.reason,
-          departmentName: item.department_name,
-          companyCode: item.company_code,
-          decisionTime: item.decision_time || null,
-          approver: item.approver || null,
+            clientName: item.company_name.replace(/^\s+/, ""),
+            currentBalance: 0,
+            requestedAmount: item.credit_amount,
+            status: capitalize(item.status),
+            timestamp: item.requested_at,
+            rejectionNote: item.rejection_comment || "",
+            reason: item.reason,
+            departmentName: item.department_name,
+            companyCode: item.company_code,
+            decisionTime: item.decision_time || null,
+            approver: item.approver || null,
           }));
         console.log(formattedClients);
 
@@ -101,7 +101,7 @@ export default function HomeScreen() {
         setClients(
           formattedClients.sort(
             (a, b) =>
-              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+              new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
           )
         );
 
@@ -138,29 +138,32 @@ export default function HomeScreen() {
   const handleConfirmAction = async () => {
     if (!selectedClient) return;
     const decisionTimestamp = new Date().toISOString();
-    const approverName = "John Doe"; // get from login session
-
+    const approverName = "John Doe"; // Replace with actual session user if needed
+  
     try {
       if (selectedAction === "accept") {
         await approveRequest(selectedClient.id);
-
-        setChartData((prev) => [
-          ...prev,
-          {
-            clientName: selectedClient.clientName,
-            requestedAmount: selectedClient.requestedAmount,
-            departmentName: selectedClient.departmentName,
-            companyCode: selectedClient.companyCode,
-            timestamp: selectedClient.timestamp,
-          },
-        ]);
       } else if (selectedAction === "reject") {
         await rejectRequest(
           selectedClient.id,
           rejectionNote.trim() || "No comment"
         );
       }
-
+  
+      // 🔥 Update chartData regardless of approve or reject
+      setChartData((prev) => [
+        ...prev,
+        {
+          clientName: selectedClient.clientName,
+          requestedAmount: selectedClient.requestedAmount,
+          departmentName: selectedClient.departmentName,
+          companyCode: selectedClient.companyCode,
+          timestamp: selectedClient.timestamp,
+          status: selectedAction === "accept" ? "Approved" : "Rejected", // 🔥 Add status field
+        },
+      ]);
+  
+      // 🔥 Update local client list status
       setClients((prev) =>
         prev.map((client) =>
           client.id === selectedClient.id
@@ -171,13 +174,13 @@ export default function HomeScreen() {
                   selectedAction === "reject" && rejectionNote.trim()
                     ? rejectionNote.trim()
                     : undefined,
-                decisionTime: decisionTimestamp, // 🆕 add decision time
-                approver: approverName, // 🆕 add approver
+                decisionTime: decisionTimestamp,
+                approver: approverName,
               }
             : client
         )
       );
-
+  
       Toast.show({
         type: "success",
         text1: `Request ${
@@ -190,12 +193,13 @@ export default function HomeScreen() {
         text1: `Failed to ${selectedAction} request.`,
       });
     }
-
+  
     setShowConfirm(false);
     setSelectedClient(null);
     setSelectedAction("");
     setRejectionNote("");
   };
+  
 
   const isSameDate = (d1: string, d2: Date) =>
     new Date(d1).toDateString() === new Date(d2).toDateString();

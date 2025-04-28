@@ -5,6 +5,8 @@ import {
   StyleSheet,
   SafeAreaView,
   TouchableOpacity,
+  Platform,
+  ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -56,54 +58,56 @@ export default function RequestDetailScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View
-        style={{
-          flex: 1,
-          paddingTop: insets.top + 4,
-          paddingBottom: insets.bottom,
+      <ScrollView
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingTop: Platform.OS === "android" ? insets.top + 4 : 0,
+          paddingBottom: insets.bottom + 16, // extra 16 for nice scroll ending
           paddingHorizontal: 16,
         }}
+        showsVerticalScrollIndicator={false} // optional: hides scrollbar
+        bounces={true} // ✅ optional: makes it bounce slightly like iOS style
       >
         <Stack.Screen options={{ headerShown: false }} />
-
+  
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
         >
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-
+  
         <View style={styles.card}>
           <Text style={styles.clientName}>{clientName}</Text>
-
+  
           <Text style={styles.label}>Company Code</Text>
           <Text style={styles.value}>{companyCode}</Text>
-
+  
           <Text style={styles.label}>Department</Text>
           <Text style={styles.value}>{departmentName}</Text>
-
+  
           <View style={styles.separator} />
-
+  
           <Text style={styles.label}>Current Balance</Text>
           <Text style={styles.value}>AED {currentBalance}</Text>
-
+  
           <Text style={styles.label}>Requested Amount</Text>
           <Text style={styles.value}>AED {requestedAmount}</Text>
-
+  
           {reason && (
             <>
               <Text style={styles.label}>Reason for Request</Text>
               <Text style={styles.value}>{reason}</Text>
             </>
           )}
-
+  
           <View style={styles.separator} />
-
+  
           <Text style={styles.label}>Urgency</Text>
           <Text style={[styles.value, { color: urgencyColor }]}>
             {urgencyLevel}
           </Text>
-
+  
           <Text style={styles.label}>Status</Text>
           <Text
             style={[
@@ -117,7 +121,7 @@ export default function RequestDetailScreen() {
           >
             {status}
           </Text>
-
+  
           <Text style={styles.label}>Submitted At</Text>
           <Text style={styles.value}>
             {new Date(timestamp).toLocaleString("en-GB", {
@@ -128,7 +132,7 @@ export default function RequestDetailScreen() {
               minute: "2-digit",
             })}
           </Text>
-
+  
           {status !== "Pending" && (
             <>
               <View style={styles.separator} />
@@ -144,12 +148,12 @@ export default function RequestDetailScreen() {
                     })
                   : "-"}
               </Text>
-
+  
               <Text style={styles.label}>Approver</Text>
               <Text style={styles.value}>{approver || "-"}</Text>
             </>
           )}
-
+  
           {status === "Rejected" && rejectionNote && (
             <>
               <View style={styles.separator} />
@@ -158,7 +162,7 @@ export default function RequestDetailScreen() {
             </>
           )}
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }

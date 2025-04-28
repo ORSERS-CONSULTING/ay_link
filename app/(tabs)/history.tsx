@@ -19,6 +19,7 @@ import { fetchClientRequests } from "@/utils/api";
 import Toast from "react-native-toast-message";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSelectedRequest } from "@/context/SelectedRequestContext";
+import { useFocusEffect } from "@react-navigation/native";
 
 
 const statuses = ["All", "Approved", "Rejected"];
@@ -45,45 +46,48 @@ export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
   const { setSelectedRequest } = useSelectedRequest();
 
-  useEffect(() => {
-    const getLogs = async () => {
-      try {
-        const response = await fetchClientRequests();
-
-        const filteredResponse = response.filter(
-          (item: any) =>
-            item.status?.toLowerCase() === "approved" ||
-            item.status?.toLowerCase() === "rejected"
-        );
-
-        const formatted: Log[] = filteredResponse.map((item: any) => ({
-          id: item.request_id.toString(),
-          clientName: item.company_name.replace(/^\s+/, ""),
-          requestedAmount: item.credit_amount,
-          currentBalance: 0, // Optional if not provided
-          status: capitalize(item.status),
-          timestamp: item.requested_at,
-          decisionTime: item.decision_time || "",
-          approver: item.approver || "",
-          rejectionNote: item.rejection_comment || "",
-          departmentName: item.department_name || "N/A",
-          companyCode: item.company_code || "N/A",        
-          reason: item.reason || "",    
-        }));
-
-        setLogs(
-          formatted.sort(
-            (a, b) =>
-              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-          )
-        );
-      } catch (e) {
-        Toast.show({ type: "error", text1: "Failed to load history logs." });
-      }
-    };
-
-    getLogs();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      const getLogs = async () => {
+        try {
+          const response = await fetchClientRequests();
+  
+          const filteredResponse = response.filter(
+            (item: any) =>
+              item.status?.toLowerCase() === "approved" ||
+              item.status?.toLowerCase() === "rejected"
+          );
+  
+          const formatted: Log[] = filteredResponse.map((item: any) => ({
+            id: item.request_id.toString(),
+            clientName: item.company_name.replace(/^\s+/, ""),
+            requestedAmount: item.credit_amount,
+            currentBalance: 0,
+            status: capitalize(item.status),
+            timestamp: item.requested_at,
+            decisionTime: item.decision_time || "",
+            approver: item.approver || "",
+            rejectionNote: item.rejection_comment || "",
+            departmentName: item.department_name || "N/A",
+            companyCode: item.company_code || "N/A",
+            reason: item.reason || "",
+          }));
+  
+          setLogs(
+            formatted.sort(
+              (a, b) =>
+                new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+            )
+          );
+        } catch (e) {
+          Toast.show({ type: "error", text1: "Failed to load history logs." });
+        }
+      };
+  
+      getLogs();
+    }, [])
+  );
+  
 
   const capitalize = (text: string | undefined | null) =>
     text ? text.charAt(0).toUpperCase() + text.slice(1).toLowerCase() : "";
@@ -252,7 +256,7 @@ export default function HistoryScreen() {
       marginLeft: 6,
     },
     listContainer: {
-      paddingBottom: 20,
+      paddingBottom: 70,
     },
     card: {
       backgroundColor: "#fff",

@@ -8,6 +8,7 @@ type ApprovedEntry = {
   departmentName: string;
   companyCode: string;
   timestamp: string;
+  status: "Approved" | "Rejected"; // ✅
 };
 
 type ChartDataContextType = {
@@ -16,9 +17,15 @@ type ChartDataContextType = {
   getTotalIncreasedAmount: (date?: Date | null) => number;
 };
 
-const ChartDataContext = createContext<ChartDataContextType | undefined>(undefined);
+const ChartDataContext = createContext<ChartDataContextType | undefined>(
+  undefined
+);
 
-export const ChartDataProvider = ({ children }: { children: React.ReactNode }) => {
+export const ChartDataProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
   const [chartData, setChartData] = useState<ApprovedEntry[]>([]);
 
   // ✅ Automatically fetch data on provider mount
@@ -34,6 +41,7 @@ export const ChartDataProvider = ({ children }: { children: React.ReactNode }) =
             departmentName: item.department_name,
             companyCode: item.company_code,
             timestamp: item.requested_at,
+            status: item.status === "APPROVED" ? "Approved" : "Rejected", // 🔥 Map properly
           }));
         setChartData(formatted);
       } catch (e) {
@@ -50,12 +58,17 @@ export const ChartDataProvider = ({ children }: { children: React.ReactNode }) =
     }
 
     return chartData
-      .filter((entry) => new Date(entry.timestamp).toDateString() === date.toDateString())
+      .filter(
+        (entry) =>
+          new Date(entry.timestamp).toDateString() === date.toDateString()
+      )
       .reduce((sum, entry) => sum + entry.requestedAmount, 0);
   };
 
   return (
-    <ChartDataContext.Provider value={{ chartData, setChartData, getTotalIncreasedAmount }}>
+    <ChartDataContext.Provider
+      value={{ chartData, setChartData, getTotalIncreasedAmount }}
+    >
       {children}
     </ChartDataContext.Provider>
   );
@@ -68,5 +81,3 @@ export const useChartData = () => {
   }
   return context;
 };
-
-
