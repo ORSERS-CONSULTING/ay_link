@@ -4,17 +4,17 @@ import { BarChart } from "react-native-gifted-charts";
 import { Dimensions } from "react-native";
 
 const screenWidth = Dimensions.get("window").width;
-const chartContainerPadding = 16 * 2; // horizontal padding from container
-const chartContainerMargin = 16 * 2; // horizontal margin from container
+const chartContainerPadding = 8 * 2; // horizontal padding from container
+const chartContainerMargin = 8 * 2; // horizontal margin from container
 const fullChartWidth =
   screenWidth - chartContainerPadding - chartContainerMargin;
 
 export default function SummaryChart() {
   const chartData = [
-    { value: 120, label: "ABC Ltd" },
-    { value: 250, label: "Global Inc" },
-    { value: 180, label: "Smart Co" },
-    { value: 300, label: "Future LLC" },
+    { value: 12000, label: "ABC Ltd" },
+    { value: 25000, label: "Global Inc" },
+    { value: 1800, label: "Smart Co" },
+    { value: 3000, label: "Future LLC" },
   ];
 
   return (
@@ -24,7 +24,7 @@ export default function SummaryChart() {
         backgroundColor: "#fff",
         borderRadius: 16,
         margin: 16,
-        width: "90%",
+        width: "99%",
         alignSelf: "center",
         elevation: 3,
         shadowColor: "#000",
@@ -39,12 +39,22 @@ export default function SummaryChart() {
           fontWeight: "bold",
           fontSize: 18,
           marginBottom: 16,
-          color: "#1E1E4B",
+          color: "black",
           textAlign: "center",
         }}
       >
         Approved Credit Summary
       </Text>
+      <Text
+        style={{
+          fontSize: 16,
+          color: "black",
+          opacity: 0.5,
+        }}
+      >
+        Total Credit Approved
+      </Text>
+      <Text style={{ fontWeight: "bold", fontSize: 24 }}>AED 300,000</Text>
 
       <BarChart
         data={chartData}
@@ -57,6 +67,8 @@ export default function SummaryChart() {
         gradientColor={"#4f46e5"}
         spacing={30}
         noOfSections={5}
+        yAxisLabelTexts={["0", "5,000", "10,000", "15,000", "20,000", "25,0000"]}
+        yAxisLabelWidth={40}
         yAxisThickness={0}
         xAxisThickness={0}
         xAxisLabelTextStyle={{ color: "gray", fontSize: 12, marginTop: 4 }}

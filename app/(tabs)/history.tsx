@@ -8,6 +8,7 @@ import {
   SafeAreaView,
   Platform,
   TextInput,
+  Modal,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -16,6 +17,9 @@ import * as Sharing from "expo-sharing";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { fetchClientRequests } from "@/utils/api";
 import Toast from "react-native-toast-message";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSelectedRequest } from "@/context/SelectedRequestContext";
+
 
 const statuses = ["All", "Approved", "Rejected"];
 
@@ -38,6 +42,8 @@ export default function HistoryScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [search, setSearch] = useState("");
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { setSelectedRequest } = useSelectedRequest();
 
   useEffect(() => {
     const getLogs = async () => {
@@ -52,7 +58,7 @@ export default function HistoryScreen() {
 
         const formatted: Log[] = filteredResponse.map((item: any) => ({
           id: item.request_id.toString(),
-          clientName: item.company_name,
+          clientName: item.company_name.replace(/^\s+/, ""),
           requestedAmount: item.credit_amount,
           currentBalance: 0, // Optional if not provided
           status: capitalize(item.status),
@@ -60,14 +66,17 @@ export default function HistoryScreen() {
           decisionTime: item.decision_time || "",
           approver: item.approver || "",
           rejectionNote: item.rejection_comment || "",
+          departmentName: item.department_name || "N/A",
+          companyCode: item.company_code || "N/A",        
+          reason: item.reason || "",    
         }));
 
         setLogs(
           formatted.sort(
-            (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+            (a, b) =>
+              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
           )
         );
-        
       } catch (e) {
         Toast.show({ type: "error", text1: "Failed to load history logs." });
       }
@@ -113,13 +122,13 @@ export default function HistoryScreen() {
                   <tr>
                     <td>${log.clientName}</td>
                     <td>AED ${log.requestedAmount.toLocaleString("en-US", {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-})}</td>
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}</td>
 <td>AED ${log.currentBalance.toLocaleString("en-US", {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-})}</td>
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}</td>
 
                     <td>${log.status}</td>
                     <td>${log.timestamp}</td>
@@ -141,21 +150,11 @@ export default function HistoryScreen() {
 
   const renderItem = ({ item }: { item: Log }) => (
     <TouchableOpacity
-      onPress={() =>
-        router.push({
-          pathname: "/request-detail-screen",
-          params: {
-            clientName: item.clientName,
-            requestedAmount: item.requestedAmount,
-            status: item.status,
-            timestamp: item.timestamp,
-            decisionTime: item.decisionTime,
-            rejectionNote: item.rejectionNote,
-            currentBalance: item.currentBalance,
-            approver: item.approver,
-          },
-        })
-      }
+      onPress={() => {
+        setSelectedRequest(item); 
+        router.push("/request-detail-screen"); 
+      }}
+      
       style={styles.card}
       activeOpacity={0.85}
     >
@@ -163,11 +162,12 @@ export default function HistoryScreen() {
         <View>
           <Text style={styles.clientName}>{item.clientName}</Text>
           <Text style={styles.label}>
-  Requested: AED {item.requestedAmount.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}
-</Text>
+            Requested: AED{" "}
+            {item.requestedAmount.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
+          </Text>
 
           <Text
             style={[
@@ -186,192 +186,291 @@ export default function HistoryScreen() {
     </TouchableOpacity>
   );
 
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: "#1E1E4B",
+      paddingHorizontal: 16,
+      paddingBottom: 100,
+    },
+    topBar: {
+      marginTop: 30,
+      marginBottom: 12,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    header: {
+      fontSize: 24,
+      fontWeight: "bold",
+      color: "#fff",
+      textAlign: "center",
+    },
+    searchInput: {
+      backgroundColor: "#fff",
+      borderRadius: 10,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      fontSize: 16,
+      marginBottom: 12,
+    },
+    filtersContainer: {
+      flexDirection: "row",
+      justifyContent: "space-around",
+      marginBottom: 12,
+      flexWrap: "wrap",
+    },
+    filterButton: {
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+      borderRadius: 20,
+      backgroundColor: "#3D3D6B",
+      margin: 4,
+    },
+    filterText: {
+      color: "#aaa",
+      fontSize: 14,
+    },
+    activeFilter: {
+      backgroundColor: "#fff",
+    },
+    activeFilterText: {
+      color: "#1E1E4B",
+      fontWeight: "bold",
+    },
+    dateFilterButton: {
+      backgroundColor: "#fff",
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 6,
+      paddingHorizontal: 16,
+      borderRadius: 20,
+    },
+    dateFilterText: {
+      color: "#1E1E4B",
+      fontWeight: "bold",
+      marginLeft: 6,
+    },
+    listContainer: {
+      paddingBottom: 20,
+    },
+    card: {
+      backgroundColor: "#fff",
+      borderRadius: 16,
+      padding: 20,
+      marginBottom: 16,
+    },
+    cardTopRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    clientName: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: "#1E1E4B",
+    },
+    label: {
+      fontSize: 14,
+      color: "#666",
+      marginTop: 4,
+    },
+    approved: {
+      color: "#27AE60",
+    },
+    rejected: {
+      color: "#E74C3C",
+    },
+    pending: {
+      color: "#F5A623",
+    },
+    viewIconButton: {
+      padding: 8,
+      backgroundColor: "#eee",
+      borderRadius: 50,
+    },
+    safeArea: {
+      flex: 1,
+      backgroundColor: "#1E1E4B",
+    },
+  });
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.topBar}>
-        <Text style={styles.header}>Activity Logs</Text>
-        <TouchableOpacity onPress={handleExportPDF}>
-          <Ionicons name="download-outline" size={24} color="#fff" />
-        </TouchableOpacity>
-      </View>
+    <SafeAreaView style={styles.safeArea}>
+      <View
+        style={{
+          flex: 1,
+          paddingTop: 4,
+          paddingBottom: insets.bottom,
+          paddingHorizontal: 16,
+        }}
+      >
+        <View style={styles.topBar}>
+          <Text style={styles.header}>Activity Logs</Text>
+          <TouchableOpacity onPress={handleExportPDF}>
+            <Ionicons name="download-outline" size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
 
-      <TextInput
-        placeholder="Search by client name..."
-        placeholderTextColor="#aaa"
-        style={styles.searchInput}
-        value={search}
-        onChangeText={setSearch}
-      />
+        <TextInput
+          placeholder="Search by client name..."
+          placeholderTextColor="#aaa"
+          style={styles.searchInput}
+          value={search}
+          onChangeText={setSearch}
+        />
 
-      <View style={styles.filtersContainer}>
-        {statuses.map((status) => (
-          <TouchableOpacity
-            key={status}
-            onPress={() => setFilter(status)}
-            style={[
-              styles.filterButton,
-              filter === status && styles.activeFilter,
-            ]}
-          >
-            <Text
+        <View style={styles.filtersContainer}>
+          {statuses.map((status) => (
+            <TouchableOpacity
+              key={status}
+              onPress={() => setFilter(status)}
               style={[
-                styles.filterText,
-                filter === status && styles.activeFilterText,
+                styles.filterButton,
+                filter === status && styles.activeFilter,
               ]}
             >
-              {status}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+              <Text
+                style={[
+                  styles.filterText,
+                  filter === status && styles.activeFilterText,
+                ]}
+              >
+                {status}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-      <View style={{ alignItems: "center", marginBottom: 10 }}>
-        <TouchableOpacity
-          onPress={() => setShowDatePicker(true)}
-          style={styles.dateFilterButton}
-        >
-          <Ionicons name="calendar-outline" size={16} color="#1E1E4B" />
-          <Text style={styles.dateFilterText}>
-            {selectedDate
-              ? ` ${selectedDate.toLocaleDateString()}`
-              : " Filter by Date"}
-          </Text>
-        </TouchableOpacity>
-
-        {selectedDate && (
+        <View style={{ alignItems: "center", marginBottom: 10 }}>
           <TouchableOpacity
-            onPress={() => setSelectedDate(null)}
-            style={{ marginTop: 4 }}
+            onPress={() => setShowDatePicker(true)}
+            style={styles.dateFilterButton}
           >
-            <Text style={{ color: "#aaa", fontSize: 12 }}>
-              Clear Date Filter
+            <Ionicons name="calendar-outline" size={16} color="#1E1E4B" />
+            <Text style={styles.dateFilterText}>
+              {selectedDate
+                ? ` ${selectedDate.toLocaleDateString()}`
+                : " Filter by Date"}
             </Text>
           </TouchableOpacity>
-        )}
-      </View>
 
-      {showDatePicker && (
-        <DateTimePicker
-          value={selectedDate || new Date()}
-          mode="date"
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          onChange={(event, date) => {
-            setShowDatePicker(false);
-            if (date) setSelectedDate(date);
-          }}
+          {selectedDate && (
+            <TouchableOpacity
+              onPress={() => setSelectedDate(null)}
+              style={{ marginTop: 4 }}
+            >
+              <Text style={{
+                    color: "#aaa",
+                    fontSize: 14,
+                    textDecorationLine: "underline",
+                    fontWeight: "500",
+                  }}>
+                Clear Date Filter
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {showDatePicker ? (
+          Platform.OS === "ios" ? (
+            <Modal
+              transparent
+              animationType="fade"
+              onRequestClose={() => setShowDatePicker(false)}
+            >
+              <TouchableOpacity
+                activeOpacity={1}
+                onPressOut={() => setShowDatePicker(false)}
+                style={{
+                  flex: 1,
+                  justifyContent: "flex-end",
+                  backgroundColor: "rgba(0, 0, 0, 0.3)",
+                }}
+              >
+                <TouchableOpacity
+                  activeOpacity={1}
+                  style={{
+                    backgroundColor: "#fff",
+                    padding: 16,
+                    borderTopLeftRadius: 16,
+                    borderTopRightRadius: 16,
+                  }}
+                >
+                  <DateTimePicker
+                    value={selectedDate || new Date()}
+                    mode="date"
+                    display="spinner"
+                    onChange={(event, date) => {
+                      if (date) setSelectedDate(date);
+                    }}
+                    themeVariant="light"
+                    style={{ backgroundColor: "#fff" }}
+                  />
+
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      marginTop: 12,
+                    }}
+                  >
+                    <TouchableOpacity
+                      onPress={() => setShowDatePicker(false)}
+                      style={{
+                        flex: 1,
+                        paddingVertical: 10,
+                        borderRadius: 10,
+                        backgroundColor: "#ccc",
+                        alignItems: "center",
+                        marginRight: 8,
+                      }}
+                    >
+                      <Text style={{ color: "#000", fontWeight: "bold" }}>
+                        Cancel
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => setShowDatePicker(false)}
+                      style={{
+                        flex: 1,
+                        paddingVertical: 10,
+                        borderRadius: 10,
+                        backgroundColor: "#1E1E4B",
+                        alignItems: "center",
+                        marginLeft: 8,
+                      }}
+                    >
+                      <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                        Done
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </TouchableOpacity>
+              </TouchableOpacity>
+            </Modal>
+          ) : (
+            <DateTimePicker
+              value={selectedDate || new Date()}
+              mode="date"
+              display="default"
+              onChange={(event, date) => {
+                setShowDatePicker(false);
+                if (date) setSelectedDate(date);
+              }}
+            />
+          )
+        ) : null}
+
+        <FlatList
+          data={filteredLogs}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
         />
-      )}
-
-      <FlatList
-        data={filteredLogs}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
-      />
+      </View>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#1E1E4B",
-    paddingHorizontal: 16,
-  },
-  topBar: {
-    marginTop: 30,
-    marginBottom: 12,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  header: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#fff",
-    textAlign: "center",
-  },
-  searchInput: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 16,
-    marginBottom: 12,
-  },
-  filtersContainer: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginBottom: 12,
-    flexWrap: "wrap",
-  },
-  filterButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-    backgroundColor: "#3D3D6B",
-    margin: 4,
-  },
-  filterText: {
-    color: "#aaa",
-    fontSize: 14,
-  },
-  activeFilter: {
-    backgroundColor: "#fff",
-  },
-  activeFilterText: {
-    color: "#1E1E4B",
-    fontWeight: "bold",
-  },
-  dateFilterButton: {
-    backgroundColor: "#fff",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-  },
-  dateFilterText: {
-    color: "#1E1E4B",
-    fontWeight: "bold",
-    marginLeft: 6,
-  },
-  listContainer: {
-    paddingBottom: 20,
-  },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-  },
-  cardTopRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  clientName: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#1E1E4B",
-  },
-  label: {
-    fontSize: 14,
-    color: "#666",
-    marginTop: 4,
-  },
-  approved: {
-    color: "#27AE60",
-  },
-  rejected: {
-    color: "#E74C3C",
-  },
-  pending: {
-    color: "#F5A623",
-  },
-  viewIconButton: {
-    padding: 8,
-    backgroundColor: "#eee",
-    borderRadius: 50,
-  },
-});

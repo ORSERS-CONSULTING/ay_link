@@ -48,7 +48,16 @@ export default function LoginScreen() {
       return;
     }
 
-    if (email === "oduolateniola@gmail.com" && password === "12345678") {
+    const validCredentials = [
+      { email: "oduolateniola@gmail.com", password: "12345678" },
+      { email: "test@gmail.com", password: "123" },
+    ];
+
+    const isValid = validCredentials.some(
+      (cred) => cred.email === email && cred.password === password
+    );
+
+    if (isValid) {
       Alert.alert("Login Success", "Welcome!");
       router.replace("/(tabs)/home");
     } else {

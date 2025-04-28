@@ -1,4 +1,4 @@
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import {
   View,
   Text,
@@ -7,100 +7,167 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import React, { useEffect } from "react";
+import { useSelectedRequest } from "@/context/SelectedRequestContext";
 
 export default function RequestDetailScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
+  const { selectedRequest, setSelectedRequest } = useSelectedRequest(); // ✅ Get setter too
 
-  const clientName = params.clientName ?? "Unknown";
-  const currentBalance = Number(params.currentBalance) || 0;
-  const requestedAmount = Number(params.requestedAmount) || 0;
-  const status = params.status ?? "Unknown";
-  const timestamp = params.timestamp ?? "N/A";
-  const decisionTime = params.decisionTime ?? "";
-  const approver = params.approver ?? "";
-  const rejectionNote = params.rejectionNote ?? "";
+  useEffect(() => {
+    // When component unmounts, clear the selected request
+    return () => {
+      setSelectedRequest(null);
+    };
+  }, [setSelectedRequest]);
 
-  const urgencyRatio = requestedAmount / currentBalance;
-  let urgencyLevel = "Low";
-  let urgencyColor = "#27AE60"; // Green
-
-  if (urgencyRatio > 1.5) {
-    urgencyLevel = "High";
-    urgencyColor = "#E74C3C"; // Red
-  } else if (urgencyRatio > 1) {
-    urgencyLevel = "Medium";
-    urgencyColor = "#F5A623"; // Orange
+  if (!selectedRequest) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <Text style={{ color: "#fff", textAlign: "center", marginTop: 50 }}>
+          No request selected.
+        </Text>
+      </SafeAreaView>
+    );
   }
 
+  const {
+    clientName,
+    companyCode,
+    currentBalance,
+    departmentName,
+    requestedAmount,
+    status,
+    timestamp,
+    decisionTime,
+    approver,
+    rejectionNote,
+    reason,
+  } = selectedRequest;
+
+  const urgencyRatio = requestedAmount / (currentBalance || 1);
+  let urgencyLevel = "Low";
+  let urgencyColor = "#27AE60";
+
+  if (urgencyRatio > 1.5) urgencyLevel = "High", urgencyColor = "#E74C3C";
+  else if (urgencyRatio > 1) urgencyLevel = "Medium", urgencyColor = "#F5A623";
+
   return (
-    <SafeAreaView style={styles.container}>
-      <Stack.Screen options={{ headerShown: false }} />
+    <SafeAreaView style={styles.safeArea}>
+      <View
+        style={{
+          flex: 1,
+          paddingTop: insets.top + 4,
+          paddingBottom: insets.bottom,
+          paddingHorizontal: 16,
+        }}
+      >
+        <Stack.Screen options={{ headerShown: false }} />
 
-      {/* Back Button */}
-      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-        <Ionicons name="arrow-back" size={24} color="#fff" />
-      </TouchableOpacity>
-
-      {/* Detail Card */}
-      <View style={styles.card}>
-        <Text style={styles.clientName}>{clientName}</Text>
-
-        <Text style={styles.label}>Current Balance</Text>
-        <Text style={styles.value}>AED {currentBalance}</Text>
-
-        <Text style={styles.label}>Requested Amount</Text>
-        <Text style={styles.value}>AED {requestedAmount}</Text>
-
-        <Text style={styles.label}>Urgency</Text>
-        <Text style={[styles.value, { color: urgencyColor }]}>
-          {urgencyLevel}
-        </Text>
-
-        <Text style={styles.label}>Status</Text>
-        <Text
-          style={[
-            styles.value,
-            status === "Approved"
-              ? styles.approved
-              : status === "Rejected"
-              ? styles.rejected
-              : styles.pending,
-          ]}
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
         >
-          {status}
-        </Text>
+          <Ionicons name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
 
-        <Text style={styles.label}>Submitted At</Text>
-        <Text style={styles.value}>{timestamp}</Text>
+        <View style={styles.card}>
+          <Text style={styles.clientName}>{clientName}</Text>
 
-        {status !== "Pending" && (
-          <>
-            <Text style={styles.label}>Decision Time</Text>
-            <Text style={styles.value}>{decisionTime || "-"}</Text>
+          <Text style={styles.label}>Company Code</Text>
+          <Text style={styles.value}>{companyCode}</Text>
 
-            <Text style={styles.label}>Approver</Text>
-            <Text style={styles.value}>{approver || "-"}</Text>
-          </>
-        )}
+          <Text style={styles.label}>Department</Text>
+          <Text style={styles.value}>{departmentName}</Text>
 
-        {rejectionNote ? (
-          <>
-            <Text style={styles.label}>Rejection Note</Text>
-            <Text style={styles.note}>{rejectionNote}</Text>
-          </>
-        ) : null}
+          <View style={styles.separator} />
+
+          <Text style={styles.label}>Current Balance</Text>
+          <Text style={styles.value}>AED {currentBalance}</Text>
+
+          <Text style={styles.label}>Requested Amount</Text>
+          <Text style={styles.value}>AED {requestedAmount}</Text>
+
+          {reason && (
+            <>
+              <Text style={styles.label}>Reason for Request</Text>
+              <Text style={styles.value}>{reason}</Text>
+            </>
+          )}
+
+          <View style={styles.separator} />
+
+          <Text style={styles.label}>Urgency</Text>
+          <Text style={[styles.value, { color: urgencyColor }]}>
+            {urgencyLevel}
+          </Text>
+
+          <Text style={styles.label}>Status</Text>
+          <Text
+            style={[
+              styles.value,
+              status === "Approved"
+                ? styles.approved
+                : status === "Rejected"
+                ? styles.rejected
+                : styles.pending,
+            ]}
+          >
+            {status}
+          </Text>
+
+          <Text style={styles.label}>Submitted At</Text>
+          <Text style={styles.value}>
+            {new Date(timestamp).toLocaleString("en-GB", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </Text>
+
+          {status !== "Pending" && (
+            <>
+              <View style={styles.separator} />
+              <Text style={styles.label}>Decision Time</Text>
+              <Text style={styles.value}>
+                {decisionTime
+                  ? new Date(decisionTime).toLocaleString("en-GB", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : "-"}
+              </Text>
+
+              <Text style={styles.label}>Approver</Text>
+              <Text style={styles.value}>{approver || "-"}</Text>
+            </>
+          )}
+
+          {status === "Rejected" && rejectionNote && (
+            <>
+              <View style={styles.separator} />
+              <Text style={styles.label}>Rejection Note</Text>
+              <Text style={styles.note}>{rejectionNote}</Text>
+            </>
+          )}
+        </View>
       </View>
     </SafeAreaView>
   );
 }
 
+
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
     backgroundColor: "#1E1E4B",
-    paddingHorizontal: 16,
-    paddingTop: 16,
   },
   backButton: {
     marginBottom: 16,
@@ -145,5 +212,10 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     color: "#E74C3C",
     marginTop: 4,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: "#eee",
+    marginVertical: 16,
   },
 });
