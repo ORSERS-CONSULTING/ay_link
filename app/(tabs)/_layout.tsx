@@ -20,7 +20,7 @@ export default function TabLayout() {
         tabBarShowLabel: true,
         tabBarStyle: {
           position: "absolute",
-          bottom: Platform.OS === "ios" ? 0 : 30,
+          bottom: Platform.OS === "ios" ? 0 : 45,
           left: 16,
           right: 16,
           backgroundColor: "#fff",
@@ -28,8 +28,8 @@ export default function TabLayout() {
           borderBottomRightRadius: 0,
           borderTopLeftRadius: 0, // Flat top
           borderTopRightRadius: 0,
-          height: 90,
-          elevation: 5,
+          height: 70,
+          elevation: 1,
           borderTopColor: "#E5E7EB",
           shadowColor: "#000",
           shadowOffset: { width: 0, height: 3 },

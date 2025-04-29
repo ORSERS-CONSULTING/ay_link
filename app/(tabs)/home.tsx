@@ -60,10 +60,21 @@ export default function HomeScreen() {
   const [rejectionNote, setRejectionNote] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [additionalInfo, setAdditionalInfo] = useState("");
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const { chartData, setChartData, getTotalIncreasedAmount } = useChartData();
   const insets = useSafeAreaInsets();
   const { setSelectedRequest } = useSelectedRequest();
+  const [showSearch, setShowSearch] = useState(false);
+  const searchInputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    if (showSearch) {
+      setTimeout(() => searchInputRef.current?.focus(), 100);
+    }
+  }, [showSearch]);
 
   useEffect(() => {
     const loadClientsAndChartData = async () => {
@@ -139,7 +150,7 @@ export default function HomeScreen() {
     if (!selectedClient) return;
     const decisionTimestamp = new Date().toISOString();
     const approverName = "John Doe"; // Replace with actual session user if needed
-  
+
     try {
       if (selectedAction === "accept") {
         await approveRequest(selectedClient.id);
@@ -149,7 +160,7 @@ export default function HomeScreen() {
           rejectionNote.trim() || "No comment"
         );
       }
-  
+
       // 🔥 Update chartData regardless of approve or reject
       setChartData((prev) => [
         ...prev,
@@ -162,7 +173,7 @@ export default function HomeScreen() {
           status: selectedAction === "accept" ? "Approved" : "Rejected", // 🔥 Add status field
         },
       ]);
-  
+
       // 🔥 Update local client list status
       setClients((prev) =>
         prev.map((client) =>
@@ -180,7 +191,7 @@ export default function HomeScreen() {
             : client
         )
       );
-  
+
       Toast.show({
         type: "success",
         text1: `Request ${
@@ -193,13 +204,12 @@ export default function HomeScreen() {
         text1: `Failed to ${selectedAction} request.`,
       });
     }
-  
+
     setShowConfirm(false);
     setSelectedClient(null);
     setSelectedAction("");
     setRejectionNote("");
   };
-  
 
   const isSameDate = (d1: string, d2: Date) =>
     new Date(d1).toDateString() === new Date(d2).toDateString();
@@ -240,6 +250,25 @@ export default function HomeScreen() {
 
   const renderItem = ({ item }: { item: Client }) => (
     <View style={styles.card}>
+      {/* Header: Dept Badge + Status Dot */}
+      <View style={styles.cardHeader}>
+        <View style={styles.deptBadge}>
+          <Text style={styles.deptText}>{item.departmentName}</Text>
+        </View>
+        <View
+          style={[
+            styles.statusChip,
+            item.status === "Approved"
+              ? styles.chipApproved
+              : item.status === "Rejected"
+              ? styles.chipRejected
+              : styles.chipPending,
+          ]}
+        >
+          <Text style={styles.chipText}>{item.status.toUpperCase()}</Text>
+        </View>
+      </View>
+
       <TouchableOpacity
         onPress={() => {
           setSelectedRequest(item);
@@ -257,8 +286,7 @@ export default function HomeScreen() {
           })}
         </Text>
 
-        {/* Reason for Request with Show More Toggle */}
-        {item.reason ? (
+        {item.reason && (
           <>
             <Text style={styles.label}>Reason for Request:</Text>
             <Text
@@ -271,14 +299,7 @@ export default function HomeScreen() {
             </Text>
             {item.reason.length > 60 && (
               <TouchableOpacity onPress={() => toggleExpanded(item.id)}>
-                <Text
-                  style={{
-                    color: "#1E1E4B",
-                    fontSize: 13,
-                    fontWeight: "500",
-                    marginTop: 4,
-                  }}
-                >
+                <Text style={styles.showToggle}>
                   {expandedReasonIds.includes(item.id)
                     ? "Show less"
                     : "Show more"}
@@ -286,9 +307,20 @@ export default function HomeScreen() {
               </TouchableOpacity>
             )}
           </>
-        ) : null}
+        )}
       </TouchableOpacity>
 
+      {/* Request Additional Info (Moved Above) */}
+      <TouchableOpacity
+        style={styles.additionalInfoButton}
+        onPress={() => {
+          setSelectedClient(item);
+          setShowInfoModal(true);
+        }}
+      >
+        <Ionicons name="chatbox-ellipses-outline" size={16} color="#1E1E4B" />
+        <Text style={styles.additionalInfoText}>Request Additional Info</Text>
+      </TouchableOpacity>
       {/* Action Buttons */}
       <View style={styles.statusRow}>
         <View style={styles.actionButtons}>
@@ -333,7 +365,7 @@ export default function HomeScreen() {
       flexDirection: "row",
       justifyContent: "flex-start", // no spacing pushed in between
       gap: 0, // safe measure
-      marginBottom: 8,
+      marginBottom: 4,
     },
 
     summaryCard: {
@@ -358,8 +390,8 @@ export default function HomeScreen() {
     summaryCardFull: {
       backgroundColor: "#fff",
       borderRadius: 16,
-      paddingVertical: 20,
-      paddingHorizontal: 24,
+      paddingVertical: 12,
+      //paddingHorizontal: 15,
       justifyContent: "center",
       alignItems: "center",
       width: "100%",
@@ -402,11 +434,16 @@ export default function HomeScreen() {
     },
     searchInput: {
       backgroundColor: "#fff",
-      borderRadius: 10,
+      borderRadius: 10, // slightly rounder
       paddingHorizontal: 16,
       paddingVertical: 10,
-      fontSize: 16,
-      marginBottom: 12,
+      fontSize: 14,
+      shadowColor: "#000",
+      shadowOpacity: 0.08,
+      shadowRadius: 4,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 8,
+      marginBottom: 3,
     },
     sectionTitle: {
       fontSize: 18,
@@ -422,7 +459,7 @@ export default function HomeScreen() {
       backgroundColor: "#fff",
       borderRadius: 16,
       padding: 20,
-      marginBottom: 16,
+      marginBottom: 12,
       shadowColor: "#000",
       shadowOpacity: 0.1,
       shadowRadius: 6,
@@ -433,17 +470,17 @@ export default function HomeScreen() {
       fontSize: 20,
       fontWeight: "bold",
       color: "#1E1E4B",
-      marginBottom: 12,
+      marginBottom: 2,
     },
     label: {
       fontSize: 14,
       color: "#888",
     },
     value: {
-      fontSize: 16,
+      fontSize: 14,
       fontWeight: "600",
       color: "#333",
-      marginBottom: 8,
+      marginBottom: 4,
     },
     // status: {
     //   fontSize: 16,
@@ -469,7 +506,7 @@ export default function HomeScreen() {
     iconButton: {
       flex: 1,
       paddingVertical: 10,
-      borderRadius: 8,
+      borderRadius: 20,
       justifyContent: "center",
       alignItems: "center",
       //marginHorizontal: 0, // spacing between buttons
@@ -477,9 +514,10 @@ export default function HomeScreen() {
 
     actionButtons: {
       flexDirection: "row",
+      flex: 1,
       justifyContent: "center",
       alignItems: "center",
-      gap: 100, // or use marginHorizontal on children for RN < 0.71
+      gap: 80, // smaller gap between Approve and Reject
     },
 
     modalOverlay: {
@@ -523,6 +561,126 @@ export default function HomeScreen() {
       paddingVertical: 10,
       paddingHorizontal: 20,
       borderRadius: 8,
+    },
+    cardHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 10,
+    },
+
+    deptBadge: {
+      backgroundColor: "#E8EAF6",
+      paddingVertical: 2,
+      paddingHorizontal: 10,
+      borderRadius: 8,
+    },
+
+    deptText: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: "#1E1E4B",
+    },
+
+    statusChip: {
+      borderRadius: 20,
+      paddingHorizontal: 10,
+      paddingVertical: 2,
+      alignSelf: "flex-end",
+      marginTop: -4,
+      marginRight: -4,
+      elevation: 2,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+    },
+    chipText: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: "#fff",
+    },
+
+    chipPending: {
+      backgroundColor: "#F5A623",
+    },
+
+    chipApproved: {
+      backgroundColor: "#27AE60",
+    },
+
+    chipRejected: {
+      backgroundColor: "#E74C3C",
+    },
+
+    buttonRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginTop: 16,
+    },
+
+    actionButton: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: 10,
+      alignItems: "center",
+      marginHorizontal: 4,
+    },
+
+    buttonText: {
+      color: "#fff",
+      fontWeight: "bold",
+    },
+
+    infoIconWrapper: {
+      backgroundColor: "#F1F1F1",
+      borderRadius: 20,
+      padding: 6,
+    },
+
+    showToggle: {
+      color: "#1E1E4B",
+      fontSize: 13,
+      fontWeight: "500",
+      marginTop: 4,
+    },
+    additionalInfoButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      alignSelf: "flex-start",
+      marginTop: 4,
+      marginBottom: 4,
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+      borderRadius: 20,
+      backgroundColor: "#F1F1F1",
+      shadowColor: "#000",
+      shadowOpacity: 0.1,
+      shadowOffset: { width: 0, height: 1 },
+      shadowRadius: 2,
+      elevation: 2,
+    },
+
+    additionalInfoText: {
+      marginLeft: 6,
+      fontSize: 13,
+      fontWeight: "500",
+      color: "#1E1E4B",
+    },
+
+    floatingSearchBtn: {
+      position: "absolute",
+      top: 10,
+      right: 16,
+      zIndex: 10,
+      backgroundColor: "#1E1E4B",
+      padding: 10,
+      borderRadius: 30,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 4,
+      elevation: 5,
     },
   });
   return (
@@ -596,161 +754,253 @@ export default function HomeScreen() {
           </View>
         </Modal>
 
-        {/* 🔄 Make everything below scrollable */}
+        <Modal
+          transparent
+          visible={showInfoModal}
+          animationType="slide"
+          onRequestClose={() => setShowInfoModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.confirmModal}>
+              <Text style={styles.confirmText}>
+                Enter additional info required for {selectedClient?.clientName}:
+              </Text>
+              <TextInput
+                placeholder="E.g. Need updated documents"
+                placeholderTextColor="#999"
+                value={additionalInfo}
+                onChangeText={setAdditionalInfo}
+                multiline
+                style={styles.rejectionInput}
+              />
+
+              <View style={styles.confirmActions}>
+                <TouchableOpacity
+                  onPress={() => {
+                    // simulate action
+                    Toast.show({ type: "success", text1: "Request sent!" });
+                    setShowInfoModal(false);
+                    setAdditionalInfo("");
+                  }}
+                  style={[styles.confirmBtn, { backgroundColor: "#1E1E4B" }]}
+                >
+                  <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                    Send
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => setShowInfoModal(false)}
+                  style={[styles.confirmBtn, { backgroundColor: "#999999" }]}
+                >
+                  <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Filter by Date + Search Icon Row */}
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "center",
+            alignItems: "center",
+            marginBottom: 10,
+            position: "relative",
+          }}
+        >
+          {/* Filter by Date Button */}
+          <TouchableOpacity
+            onPress={() => setShowDatePicker(true)}
+            style={styles.dateFilterButton}
+          >
+            <Ionicons name="calendar-outline" size={16} color="#1E1E4B" />
+            <Text style={styles.dateFilterText}>
+              {selectedDate
+                ? ` ${selectedDate.toLocaleDateString()}`
+                : " Filter by Date"}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Search Icon Toggle */}
+          {!showSearch && (
+            <TouchableOpacity
+              style={{
+                position: "absolute",
+                right: 0,
+                backgroundColor: "#1E1E4B",
+                borderRadius: 20,
+                padding: 10,
+              }}
+              onPress={() => setShowSearch(true)}
+            >
+              <Ionicons name="search" size={20} color="#fff" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Optional: Clear Date Link */}
+        {selectedDate && (
+          <TouchableOpacity
+            onPress={() => setSelectedDate(null)}
+            style={{ marginBottom: 10 }}
+          >
+            <Text
+              style={{
+                color: "#aaa",
+                fontSize: 14,
+                textDecorationLine: "underline",
+                fontWeight: "500",
+                textAlign: "left",
+              }}
+            >
+              Clear Date Filter
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {showDatePicker ? (
+          Platform.OS === "ios" ? (
+            <Modal
+              transparent
+              animationType="fade"
+              onRequestClose={() => setShowDatePicker(false)}
+            >
+              <TouchableOpacity
+                activeOpacity={1}
+                onPressOut={() => setShowDatePicker(false)}
+                style={{
+                  flex: 1,
+                  justifyContent: "flex-end",
+                  backgroundColor: "rgba(0, 0, 0, 0.3)",
+                }}
+              >
+                <TouchableOpacity
+                  activeOpacity={1}
+                  style={{
+                    backgroundColor: "#fff",
+                    padding: 16,
+                    borderTopLeftRadius: 16,
+                    borderTopRightRadius: 16,
+                  }}
+                >
+                  <DateTimePicker
+                    value={selectedDate || new Date()}
+                    mode="date"
+                    display="spinner"
+                    onChange={(event, date) => {
+                      if (date) setSelectedDate(date);
+                    }}
+                    themeVariant="light"
+                    style={{ backgroundColor: "#fff" }}
+                  />
+
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      marginTop: 12,
+                    }}
+                  >
+                    <TouchableOpacity
+                      onPress={() => setShowDatePicker(false)}
+                      style={{
+                        flex: 1,
+                        paddingVertical: 10,
+                        borderRadius: 10,
+                        backgroundColor: "#ccc",
+                        alignItems: "center",
+                        marginRight: 8,
+                      }}
+                    >
+                      <Text style={{ color: "#000", fontWeight: "bold" }}>
+                        Cancel
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => setShowDatePicker(false)}
+                      style={{
+                        flex: 1,
+                        paddingVertical: 10,
+                        borderRadius: 10,
+                        backgroundColor: "#1E1E4B",
+                        alignItems: "center",
+                        marginLeft: 8,
+                      }}
+                    >
+                      <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                        Done
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </TouchableOpacity>
+              </TouchableOpacity>
+            </Modal>
+          ) : (
+            <DateTimePicker
+              value={selectedDate || new Date()}
+              mode="date"
+              display="default"
+              onChange={(event, date) => {
+                setShowDatePicker(false);
+                if (date) setSelectedDate(date);
+              }}
+            />
+          )
+        ) : null}
+
+        {/* Summary Cards */}
+        <View style={[styles.summaryContainer, { justifyContent: "center" }]}>
+          <View style={styles.summaryCardFull}>
+            <Text style={styles.summaryTitle}>Total Increased</Text>
+            <Text style={[styles.summaryValue, { fontSize: 22 }]}>
+              AED{" "}
+              {totalIncreasedAmount.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </Text>
+          </View>
+        </View>
+
+        {/* Search */}
+        {showSearch && (
+          <View style={{ position: "relative", marginBottom: 12 }}>
+            <TextInput
+              ref={searchInputRef}
+              placeholder="Search by client name..."
+              placeholderTextColor="#aaa"
+              style={[styles.searchInput, { paddingRight: 40 }]} // add space for icon
+              value={search}
+              onChangeText={setSearch}
+            />
+            <TouchableOpacity
+              onPress={() => {
+                setSearch("");
+                setShowSearch(false);
+              }}
+              style={{
+                position: "absolute",
+                right: 12,
+                top: 12,
+              }}
+            >
+              <Ionicons name="close-circle" size={20} color="#aaa" />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {filteredData.length > 0 && (
+          <Text style={styles.sectionTitle}>Pending Requests</Text>
+        )}
         <ScrollView
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
         >
-          {/* Date Filter */}
-          <View style={{ alignItems: "center", marginBottom: 10 }}>
-            <TouchableOpacity
-              onPress={() => setShowDatePicker(true)}
-              style={styles.dateFilterButton}
-            >
-              <Ionicons name="calendar-outline" size={16} color="#1E1E4B" />
-              <Text style={styles.dateFilterText}>
-                {selectedDate
-                  ? ` ${selectedDate.toLocaleDateString()}`
-                  : " Filter by Date"}
-              </Text>
-            </TouchableOpacity>
-            {selectedDate && (
-              <TouchableOpacity
-                onPress={() => setSelectedDate(null)}
-                style={{ marginTop: 4 }}
-              >
-                <Text
-                  style={{
-                    color: "#aaa",
-                    fontSize: 14,
-                    textDecorationLine: "underline",
-                    fontWeight: "500",
-                  }}
-                >
-                  Clear Date Filter
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {showDatePicker ? (
-            Platform.OS === "ios" ? (
-              <Modal
-                transparent
-                animationType="fade"
-                onRequestClose={() => setShowDatePicker(false)}
-              >
-                <TouchableOpacity
-                  activeOpacity={1}
-                  onPressOut={() => setShowDatePicker(false)}
-                  style={{
-                    flex: 1,
-                    justifyContent: "flex-end",
-                    backgroundColor: "rgba(0, 0, 0, 0.3)",
-                  }}
-                >
-                  <TouchableOpacity
-                    activeOpacity={1}
-                    style={{
-                      backgroundColor: "#fff",
-                      padding: 16,
-                      borderTopLeftRadius: 16,
-                      borderTopRightRadius: 16,
-                    }}
-                  >
-                    <DateTimePicker
-                      value={selectedDate || new Date()}
-                      mode="date"
-                      display="spinner"
-                      onChange={(event, date) => {
-                        if (date) setSelectedDate(date);
-                      }}
-                      themeVariant="light"
-                      style={{ backgroundColor: "#fff" }}
-                    />
-
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                        marginTop: 12,
-                      }}
-                    >
-                      <TouchableOpacity
-                        onPress={() => setShowDatePicker(false)}
-                        style={{
-                          flex: 1,
-                          paddingVertical: 10,
-                          borderRadius: 10,
-                          backgroundColor: "#ccc",
-                          alignItems: "center",
-                          marginRight: 8,
-                        }}
-                      >
-                        <Text style={{ color: "#000", fontWeight: "bold" }}>
-                          Cancel
-                        </Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        onPress={() => setShowDatePicker(false)}
-                        style={{
-                          flex: 1,
-                          paddingVertical: 10,
-                          borderRadius: 10,
-                          backgroundColor: "#1E1E4B",
-                          alignItems: "center",
-                          marginLeft: 8,
-                        }}
-                      >
-                        <Text style={{ color: "#fff", fontWeight: "bold" }}>
-                          Done
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </TouchableOpacity>
-                </TouchableOpacity>
-              </Modal>
-            ) : (
-              <DateTimePicker
-                value={selectedDate || new Date()}
-                mode="date"
-                display="default"
-                onChange={(event, date) => {
-                  setShowDatePicker(false);
-                  if (date) setSelectedDate(date);
-                }}
-              />
-            )
-          ) : null}
-
-          {/* Summary Cards */}
-          <View style={[styles.summaryContainer, { justifyContent: "center" }]}>
-            <View style={styles.summaryCardFull}>
-              <Text style={styles.summaryTitle}>Total Increased</Text>
-              <Text style={[styles.summaryValue, { fontSize: 22 }]}>
-                AED{" "}
-                {totalIncreasedAmount.toLocaleString("en-US", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </Text>
-            </View>
-          </View>
-
-          {/* Search */}
-          <TextInput
-            placeholder="Search by client name..."
-            placeholderTextColor="#aaa"
-            style={styles.searchInput}
-            value={search}
-            onChangeText={setSearch}
-          />
-
-          {filteredData.length > 0 && (
-            <Text style={styles.sectionTitle}>Pending Requests</Text>
-          )}
-
           {/* Cards */}
           {/* {filteredData.map((item) => renderItem({ item }))} */}
           {filteredData.map((item) => (
