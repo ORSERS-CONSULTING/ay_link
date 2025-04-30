@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -7,12 +7,13 @@ import {
   StyleSheet,
   SafeAreaView,
   Alert,
-  Animated,
+  ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "react-native";
+import * as LocalAuthentication from "expo-local-authentication";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -21,15 +22,34 @@ export default function LoginScreen() {
   const [attemptsLeft, setAttemptsLeft] = useState(3);
   const [blocked, setBlocked] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const cardAnim = useRef(new Animated.Value(100)).current;
 
-  useEffect(() => {
-    Animated.timing(cardAnim, {
-      toValue: 0,
-      duration: 500,
-      useNativeDriver: true,
-    }).start();
-  }, []);
+  const handleFaceIDLogin = async () => {
+    const hasHardware = await LocalAuthentication.hasHardwareAsync();
+    const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+    if (!hasHardware || !isEnrolled) {
+      Alert.alert(
+        "Face ID Not Available",
+        "Your device doesn't support Face ID or it hasn't been set up."
+      );
+      return;
+    }
+
+    const result = await LocalAuthentication.authenticateAsync({
+      promptMessage: "Login with Face ID",
+      fallbackLabel: "Use passcode",
+    });
+
+    if (result.success) {
+      Alert.alert("Login Success", "Authenticated via Face ID!");
+      router.replace("/(tabs)/home");
+    } else {
+      Alert.alert(
+        "Authentication Failed",
+        "Face ID verification unsuccessful."
+      );
+    }
+  };
 
   const handleLogin = () => {
     if (blocked) {
@@ -49,7 +69,7 @@ export default function LoginScreen() {
     }
 
     const validCredentials = [
-      { email: "oduolateniola@gmail.com", password: "12345678" },
+      { email: "oduolateniola@gmail.com", password: "123" },
       { email: "test@gmail.com", password: "123" },
     ];
 
@@ -80,73 +100,95 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Image
-        source={require("@/assets/images/alyalayis-logo.png")}
-        style={styles.logo}
-      />
-
-      <Animated.View
-        style={[styles.card, { transform: [{ translateY: cardAnim }] }]}
+      <ScrollView
+        contentContainerStyle={{
+          flexGrow: 1,
+          justifyContent: "center",
+          paddingVertical: 24,
+        }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        {/* <Text style={styles.title}>Login</Text> */}
-
-        {/* Email Field */}
-        <View style={styles.inputWrapper}>
-          <Ionicons
-            name="mail-outline"
-            size={20}
-            color="#888"
-            style={styles.leftIcon}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor="#aaa"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
+        <View style={styles.logoContainer}>
+          <Image
+            source={require("@/assets/images/alyalayis-logo.png")}
+            style={styles.logo}
           />
         </View>
 
-        {/* Password Field */}
-        <View style={styles.inputWrapper}>
-          <Ionicons
-            name="lock-closed-outline"
-            size={20}
-            color="#888"
-            style={styles.leftIcon}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor="#aaa"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry={!showPassword}
-          />
-          <TouchableOpacity onPress={() => setShowPassword((prev) => !prev)}>
+        <Text style={styles.title}>AYLINK</Text>
+        <Text style={styles.subTitle}>Please log in to continue</Text>
+
+        <View style={styles.card}>
+          <View style={styles.inputWrapper}>
             <Ionicons
-              name={showPassword ? "eye-off-outline" : "eye-outline"}
+              name="mail-outline"
               size={20}
               color="#888"
-              style={styles.rightIcon}
+              style={styles.leftIcon}
             />
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              placeholderTextColor="#aaa"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+          </View>
+
+          <View style={styles.inputWrapper}>
+            <Ionicons
+              name="lock-closed-outline"
+              size={20}
+              color="#888"
+              style={styles.leftIcon}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              placeholderTextColor="#aaa"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+            />
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+              <Ionicons
+                name={showPassword ? "eye-off-outline" : "eye-outline"}
+                size={20}
+                color="#888"
+                style={styles.rightIcon}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            onPress={handleFaceIDLogin}
+            style={{ marginTop: 10 }}
+          >
+            <LinearGradient
+              colors={["#333", "#555"]}
+              style={styles.button}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Text style={styles.buttonText}>Login with Face ID</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <TouchableOpacity disabled={blocked} onPress={handleLogin}>
+            <LinearGradient
+              colors={["#1E1E4B", "#3D3D6B"]}
+              style={styles.button}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Text style={styles.buttonText}>Login</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
-
-        {/* Login Button */}
-        <TouchableOpacity disabled={blocked} onPress={handleLogin}>
-          <LinearGradient
-            colors={["#1E1E4B", "#3D3D6B"]}
-            style={styles.button}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Text style={styles.buttonText}>Login</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-      </Animated.View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -155,27 +197,36 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
-    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  logo: {
+    width: 160,
+    height: 160,
+    resizeMode: "contain",
+    marginBottom: 12,
+  },
+  logoContainer: {
     alignItems: "center",
-    padding: 16,
+    marginBottom: 12,
+  },
+  title: {
+    fontSize: 30,
+    fontWeight: "800",
+    color: "#1E1E4B",
+    textAlign: "center",
+    letterSpacing: 2,
+    marginBottom: 6,
+  },
+  subTitle: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 24,
+    textAlign: "center",
   },
   card: {
-    // backgroundColor: "#fff",
     borderRadius: 20,
     padding: 24,
     width: "100%",
-    // shadowColor: "#000",
-    // shadowOpacity: 0.1,
-    // shadowRadius: 10,
-    // shadowOffset: { width: 0, height: 5 },
-    // elevation: 6,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#1E1E4B",
-    marginBottom: 20,
-    textAlign: "center",
   },
   inputWrapper: {
     flexDirection: "row",
@@ -207,11 +258,5 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "bold",
     fontSize: 16,
-  },
-  logo: {
-    width: 250,
-    height: 250,
-    resizeMode: "contain",
-    // marginBottom: 10,
   },
 });

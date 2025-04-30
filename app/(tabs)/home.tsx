@@ -32,13 +32,14 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSelectedRequest } from "@/context/SelectedRequestContext";
+import { RefreshControl } from "react-native";
 
 type Client = {
   id: string;
   clientName: string;
   currentBalance: number;
   requestedAmount: number;
-  status: "Pending" | "Approved" | "Rejected";
+  status: "Pending" | "Approved" | "Rejected"| "On hold";
   timestamp: string;
   rejectionNote?: string;
   reason?: string;
@@ -69,6 +70,7 @@ export default function HomeScreen() {
   const { setSelectedRequest } = useSelectedRequest();
   const [showSearch, setShowSearch] = useState(false);
   const searchInputRef = useRef<TextInput>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (showSearch) {
@@ -76,52 +78,55 @@ export default function HomeScreen() {
     }
   }, [showSearch]);
 
+  const loadClientsAndChartData = async () => {
+    setRefreshing(true);
+    try {
+      const response = await fetchClientRequests();
+console.log(response);
+      const formattedClients: Client[] = response
+        .filter((item: any) => item.status === "PENDING")
+        .map((item: any) => ({
+          id: item.request_id.toString(),
+          clientName: item.company_name.replace(/^\s+/, ""),
+          currentBalance: 0,
+          requestedAmount: item.credit_amount,
+          status: capitalize(item.status),
+          timestamp: item.requested_at,
+          rejectionNote: item.rejection_comment || "",
+          reason: item.reason,
+          departmentName: item.department_name,
+          companyCode: item.company_code,
+          decisionTime: item.decision_time || null,
+          approver: item.approver || null,
+        }));
+      // console.log(formattedClients);
+
+      const formattedChartData = response
+        .filter((item: any) => item.status === "APPROVED")
+        .map((item: any) => ({
+          clientName: item.company_name,
+          requestedAmount: item.credit_amount,
+          departmentName: item.department_name,
+          companyCode: item.company_code,
+          timestamp: item.requested_at,
+        }));
+
+      setClients(
+        formattedClients.sort(
+          (a, b) =>
+            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        )
+      );
+
+      setChartData(formattedChartData); // 🔄 sync chartData used in summary
+    } catch (e) {
+      Toast.show({ type: "error", text1: "Failed to load requests." });
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   useEffect(() => {
-    const loadClientsAndChartData = async () => {
-      try {
-        const response = await fetchClientRequests();
-
-        const formattedClients: Client[] = response
-          .filter((item: any) => item.status === "PENDING")
-          .map((item: any) => ({
-            id: item.request_id.toString(),
-            clientName: item.company_name.replace(/^\s+/, ""),
-            currentBalance: 0,
-            requestedAmount: item.credit_amount,
-            status: capitalize(item.status),
-            timestamp: item.requested_at,
-            rejectionNote: item.rejection_comment || "",
-            reason: item.reason,
-            departmentName: item.department_name,
-            companyCode: item.company_code,
-            decisionTime: item.decision_time || null,
-            approver: item.approver || null,
-          }));
-        console.log(formattedClients);
-
-        const formattedChartData = response
-          .filter((item: any) => item.status === "APPROVED")
-          .map((item: any) => ({
-            clientName: item.company_name,
-            requestedAmount: item.credit_amount,
-            departmentName: item.department_name,
-            companyCode: item.company_code,
-            timestamp: item.requested_at,
-          }));
-
-        setClients(
-          formattedClients.sort(
-            (a, b) =>
-              new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-          )
-        );
-
-        setChartData(formattedChartData); // 🔄 sync chartData used in summary
-      } catch (e) {
-        Toast.show({ type: "error", text1: "Failed to load requests." });
-      }
-    };
-
     loadClientsAndChartData();
   }, []);
 
@@ -400,7 +405,7 @@ export default function HomeScreen() {
       shadowOpacity: 0.05,
       shadowRadius: 6,
       elevation: 2,
-      marginBottom: 12,
+      marginBottom: 2,
     },
     safeArea: {
       flex: 1,
@@ -509,8 +514,13 @@ export default function HomeScreen() {
       borderRadius: 20,
       justifyContent: "center",
       alignItems: "center",
-      //marginHorizontal: 0, // spacing between buttons
-    },
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    }
+    ,
 
     actionButtons: {
       flexDirection: "row",
@@ -566,7 +576,7 @@ export default function HomeScreen() {
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
-      marginBottom: 10,
+      marginBottom: 4,
     },
 
     deptBadge: {
@@ -1000,6 +1010,12 @@ export default function HomeScreen() {
         <ScrollView
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={loadClientsAndChartData}
+            />
+          }
         >
           {/* Cards */}
           {/* {filteredData.map((item) => renderItem({ item }))} */}
