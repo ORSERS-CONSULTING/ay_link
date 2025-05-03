@@ -20,6 +20,7 @@ import {
 import { ChartDataProvider } from "@/context/ChartDataContext";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { SelectedRequestProvider } from "@/context/SelectedRequestContext"; // ✅ import it
+import { ClientRequestProvider } from "@/context/ClientRequestContext";
 
 
 Notifications.setNotificationHandler({
@@ -92,11 +93,13 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
     <NotificationProvider>
+      <ClientRequestProvider>
       <ChartDataProvider>
       <SelectedRequestProvider> 
             <RootLayoutContent />
           </SelectedRequestProvider>
       </ChartDataProvider>
+      </ClientRequestProvider>
     </NotificationProvider>
     </SafeAreaProvider>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Platform,
   TextInput,
   Modal,
+  RefreshControl,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -20,7 +21,6 @@ import Toast from "react-native-toast-message";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSelectedRequest } from "@/context/SelectedRequestContext";
 import { useFocusEffect } from "@react-navigation/native";
-
 
 const statuses = ["All", "Approved", "Rejected"];
 
@@ -45,49 +45,59 @@ export default function HistoryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { setSelectedRequest } = useSelectedRequest();
+  const [refreshing, setRefreshing] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [scrollY, setScrollY] = useState(0);
+  const searchInputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    if (showSearch) {
+      setTimeout(() => searchInputRef.current?.focus(), 100);
+    }
+  }, [showSearch]);
+
+  const loadLogs = async () => {
+    setRefreshing(true);
+    try {
+      const response = await fetchClientRequests();
+      const filtered = response.filter(
+        (item: any) =>
+          item.status?.toLowerCase() === "approved" ||
+          item.status?.toLowerCase() === "rejected"
+      );
+      const formatted: Log[] = filtered.map((item: any) => ({
+        id: item.request_id.toString(),
+        clientName: item.company_name.trim(),
+        requestedAmount: item.credit_amount,
+        currentBalance: 0,
+        status: capitalize(item.status),
+        timestamp: item.requested_at,
+        decisionTime: item.decision_time || "",
+        approver: item.approver || "",
+        rejectionNote: item.rejection_comment || "",
+        departmentName: item.department_name || "N/A",
+        companyCode: item.company_code || "N/A",
+        reason: item.reason || "",
+      }));
+      setLogs(
+        formatted.sort(
+          (a, b) =>
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        )
+      );
+    } catch {
+      Toast.show({ type: "error", text1: "Failed to load history logs." });
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   useFocusEffect(
-    React.useCallback(() => {
-      const getLogs = async () => {
-        try {
-          const response = await fetchClientRequests();
-  
-          const filteredResponse = response.filter(
-            (item: any) =>
-              item.status?.toLowerCase() === "approved" ||
-              item.status?.toLowerCase() === "rejected"
-          );
-  
-          const formatted: Log[] = filteredResponse.map((item: any) => ({
-            id: item.request_id.toString(),
-            clientName: item.company_name.replace(/^\s+/, ""),
-            requestedAmount: item.credit_amount,
-            currentBalance: 0,
-            status: capitalize(item.status),
-            timestamp: item.requested_at,
-            decisionTime: item.decision_time || "",
-            approver: item.approver || "",
-            rejectionNote: item.rejection_comment || "",
-            departmentName: item.department_name || "N/A",
-            companyCode: item.company_code || "N/A",
-            reason: item.reason || "",
-          }));
-  
-          setLogs(
-            formatted.sort(
-              (a, b) =>
-                new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-            )
-          );
-        } catch (e) {
-          Toast.show({ type: "error", text1: "Failed to load history logs." });
-        }
-      };
-  
-      getLogs();
+    useCallback(() => {
+      loadLogs();
     }, [])
   );
-  
 
   const capitalize = (text: string | undefined | null) =>
     text ? text.charAt(0).toUpperCase() + text.slice(1).toLowerCase() : "";
@@ -103,6 +113,22 @@ export default function HistoryScreen() {
       : true;
     return matchesSearch && statusMatch && dateMatch;
   });
+
+  const formatSubmittedTime = (timestamp: string) => {
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diffMs = now.getTime() - time.getTime();
+    const diffHrs = diffMs / (1000 * 60 * 60);
+
+    if (diffHrs < 24) {
+      return time.toLocaleTimeString("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }); // e.g., 14:32
+    } else {
+      return time.toLocaleDateString("en-GB"); // e.g., 02/12/2025
+    }
+  };
 
   const handleExportPDF = async () => {
     const html = `
@@ -155,16 +181,27 @@ export default function HistoryScreen() {
   const renderItem = ({ item }: { item: Log }) => (
     <TouchableOpacity
       onPress={() => {
-        setSelectedRequest(item); 
-        router.push("/request-detail-screen"); 
+        setSelectedRequest(item);
+        router.push("/request-detail-screen");
       }}
-      
       style={styles.card}
       activeOpacity={0.85}
     >
       <View style={styles.cardTopRow}>
         <View>
-          <Text style={styles.clientName}>{item.clientName}</Text>
+          <View style={styles.clientRow}>
+            <Text
+              style={styles.clientName}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {item.clientName}
+            </Text>
+            <Text style={styles.timeText}>
+              {formatSubmittedTime(item.timestamp)}
+            </Text>
+          </View>
+
           <Text style={styles.label}>
             Requested: AED{" "}
             {item.requestedAmount.toLocaleString("en-US", {
@@ -183,7 +220,7 @@ export default function HistoryScreen() {
                 : styles.pending,
             ]}
           >
-            Status: {item.status}
+            {item.status}
           </Text>
         </View>
       </View>
@@ -197,26 +234,18 @@ export default function HistoryScreen() {
       paddingHorizontal: 16,
       paddingBottom: 100,
     },
-    topBar: {
-      marginTop: 30,
-      marginBottom: 12,
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-    },
-    header: {
-      fontSize: 24,
-      fontWeight: "bold",
-      color: "#fff",
-      textAlign: "center",
-    },
+
     searchInput: {
       backgroundColor: "#fff",
       borderRadius: 10,
       paddingHorizontal: 16,
       paddingVertical: 10,
-      fontSize: 16,
-      marginBottom: 12,
+      fontSize: 14,
+      shadowColor: "#000",
+      shadowOpacity: 0.08,
+      shadowRadius: 4,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 8,
     },
     filtersContainer: {
       flexDirection: "row",
@@ -229,11 +258,10 @@ export default function HistoryScreen() {
       paddingHorizontal: 14,
       borderRadius: 20,
       backgroundColor: "#3D3D6B",
-      margin: 4,
     },
     filterText: {
       color: "#aaa",
-      fontSize: 14,
+      fontSize: 12,
     },
     activeFilter: {
       backgroundColor: "#fff",
@@ -261,21 +289,23 @@ export default function HistoryScreen() {
     card: {
       backgroundColor: "#fff",
       borderRadius: 16,
-      padding: 20,
-      marginBottom: 16,
+      padding: 16,
+      marginBottom: 12,
+    },
+
+    clientNameContainer: {
+      flex: 1,
+      // marginRight: 16,
     },
     cardTopRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
+      flexDirection: "column",
+      // alignItems: "center",
+      // justifyContent: "space-between",
+      marginBottom: 4,
     },
-    clientName: {
-      fontSize: 18,
-      fontWeight: "bold",
-      color: "#1E1E4B",
-    },
+
     label: {
-      fontSize: 14,
+      fontSize: 13,
       color: "#666",
       marginTop: 4,
     },
@@ -297,6 +327,48 @@ export default function HistoryScreen() {
       flex: 1,
       backgroundColor: "#1E1E4B",
     },
+    topBar: {
+      marginTop: 30,
+      marginBottom: 12,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    header: {
+      fontSize: 24,
+      fontWeight: "bold",
+      color: "#fff",
+    },
+    iconRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 16,
+    },
+    clientRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 2,
+    },
+
+    clientNameWrapper: {
+      flex: 1,
+      // paddingRight: 8, // ensures spacing before time
+    },
+
+    clientName: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: "#1E1E4B",
+       maxWidth: "72%" 
+    },
+
+    timeText: {
+      fontSize: 11,
+      color: "#999",
+      minWidth: 60, // ensure fixed space for consistent right alignment
+      textAlign: "right",
+    },
   });
 
   return (
@@ -311,69 +383,30 @@ export default function HistoryScreen() {
       >
         <View style={styles.topBar}>
           <Text style={styles.header}>Activity Logs</Text>
-          <TouchableOpacity onPress={handleExportPDF}>
-            <Ionicons name="download-outline" size={24} color="#fff" />
-          </TouchableOpacity>
-        </View>
 
-        <TextInput
-          placeholder="Search by client name..."
-          placeholderTextColor="#aaa"
-          style={styles.searchInput}
-          value={search}
-          onChangeText={setSearch}
-        />
-
-        <View style={styles.filtersContainer}>
-          {statuses.map((status) => (
-            <TouchableOpacity
-              key={status}
-              onPress={() => setFilter(status)}
-              style={[
-                styles.filterButton,
-                filter === status && styles.activeFilter,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.filterText,
-                  filter === status && styles.activeFilterText,
-                ]}
-              >
-                {status}
-              </Text>
+          <View style={styles.iconRow}>
+            <TouchableOpacity onPress={() => setShowFilters((prev) => !prev)}>
+              <Ionicons name="filter-outline" size={22} color="#fff" />
             </TouchableOpacity>
-          ))}
-        </View>
 
-        <View style={{ alignItems: "center", marginBottom: 10 }}>
-          <TouchableOpacity
-            onPress={() => setShowDatePicker(true)}
-            style={styles.dateFilterButton}
-          >
-            <Ionicons name="calendar-outline" size={16} color="#1E1E4B" />
-            <Text style={styles.dateFilterText}>
-              {selectedDate
-                ? ` ${selectedDate.toLocaleDateString()}`
-                : " Filter by Date"}
-            </Text>
-          </TouchableOpacity>
-
-          {selectedDate && (
-            <TouchableOpacity
-              onPress={() => setSelectedDate(null)}
-              style={{ marginTop: 4 }}
-            >
-              <Text style={{
-                    color: "#aaa",
-                    fontSize: 14,
-                    textDecorationLine: "underline",
-                    fontWeight: "500",
-                  }}>
-                Clear Date Filter
-              </Text>
+            <TouchableOpacity onPress={() => setShowSearch((prev) => !prev)}>
+              <Ionicons
+                name="search-outline"
+                size={22}
+                color="#fff"
+                style={{ marginLeft: 12 }}
+              />
             </TouchableOpacity>
-          )}
+
+            <TouchableOpacity onPress={handleExportPDF}>
+              <Ionicons
+                name="download-outline"
+                size={22}
+                color="#fff"
+                style={{ marginLeft: 12 }}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {showDatePicker ? (
@@ -473,6 +506,100 @@ export default function HistoryScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16}
+          onScroll={(event) => {
+            const y = event.nativeEvent.contentOffset.y;
+            setScrollY(y);
+            if (y > 150) {
+              setShowSearch(false);
+              setShowFilters(false);
+            }
+          }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={loadLogs} />
+          }
+          ListHeaderComponent={
+            <>
+              {showSearch && (
+                <View style={{ position: "relative", marginBottom: 12 }}>
+                  <TextInput
+                    ref={searchInputRef}
+                    placeholder="Search by client name..."
+                    placeholderTextColor="#aaa"
+                    style={[styles.searchInput, { paddingRight: 40 }]}
+                    value={search}
+                    onChangeText={setSearch}
+                  />
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSearch("");
+                      setShowSearch(false);
+                    }}
+                    style={{
+                      position: "absolute",
+                      right: 12,
+                      top: 12,
+                    }}
+                  >
+                    <Ionicons name="close-circle" size={20} color="#aaa" />
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {showFilters && (
+                <View style={styles.filtersContainer}>
+                  {statuses.map((status) => (
+                    <TouchableOpacity
+                      key={status}
+                      onPress={() => setFilter(status)}
+                      style={[
+                        styles.filterButton,
+                        filter === status && styles.activeFilter,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.filterText,
+                          filter === status && styles.activeFilterText,
+                        ]}
+                      >
+                        {status}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              <View style={{ alignItems: "center", marginBottom: 10 }}>
+                <TouchableOpacity
+                  onPress={() => setShowDatePicker(true)}
+                  style={styles.dateFilterButton}
+                >
+                  <Ionicons name="calendar-outline" size={16} color="#1E1E4B" />
+                  <Text style={styles.dateFilterText}>
+                    {selectedDate
+                      ? ` ${selectedDate.toLocaleDateString()}`
+                      : " Filter by Date"}
+                  </Text>
+                </TouchableOpacity>
+
+                {selectedDate && (
+                  <TouchableOpacity onPress={() => setSelectedDate(null)}>
+                    <Text
+                      style={{
+                        color: "#aaa",
+                        fontSize: 14,
+                        textDecorationLine: "underline",
+                        fontWeight: "500",
+                      }}
+                    >
+                      Clear Date Filter
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </>
+          }
         />
       </View>
     </SafeAreaView>

@@ -49,3 +49,22 @@ export async function rejectRequest(requestId: string, comment: string) {
     return {}; // fallback
   }
 }
+
+export async function sendBackRequest(requestId: string, remarks: string) {
+  const url = `${BASE_URL}/sendBack?request_id=${requestId}&returned_remarks=${encodeURIComponent(remarks)}`;
+  const res = await fetch(url, { method: "POST" });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error("❌ Send back failed:", errorText);
+    throw new Error("Send back failed");
+  }
+
+  try {
+    return await res.json();
+  } catch (err) {
+    console.warn("⚠️ Send back succeeded but no JSON returned.");
+    return {}; // fallback
+  }
+}
+

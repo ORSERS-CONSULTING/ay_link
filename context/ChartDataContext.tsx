@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { fetchClientRequests } from "@/utils/api"; // ✅ make sure this is imported
+import { fetchClientRequests } from "@/utils/api";
 import Toast from "react-native-toast-message";
 
 type ApprovedEntry = {
@@ -8,40 +8,39 @@ type ApprovedEntry = {
   departmentName: string;
   companyCode: string;
   timestamp: string;
-  status: "Approved" | "Rejected"; // ✅
+  status: "Approved" | "Rejected";
+};
+
+type ClientSummary = {
+  approvedAmount: number;
+  rejectedAmount: number;
 };
 
 type ChartDataContextType = {
   chartData: ApprovedEntry[];
   setChartData: React.Dispatch<React.SetStateAction<ApprovedEntry[]>>;
   getTotalIncreasedAmount: (date?: Date | null) => number;
+  getClientSummary: (clientName: string, date?: Date | null) => ClientSummary;
 };
 
-const ChartDataContext = createContext<ChartDataContextType | undefined>(
-  undefined
-);
+const ChartDataContext = createContext<ChartDataContextType | undefined>(undefined);
 
-export const ChartDataProvider = ({
-  children,
-}: {
-  children: React.ReactNode;
-}) => {
+export const ChartDataProvider = ({ children }: { children: React.ReactNode }) => {
   const [chartData, setChartData] = useState<ApprovedEntry[]>([]);
 
-  // ✅ Automatically fetch data on provider mount
   useEffect(() => {
     const loadChartData = async () => {
       try {
         const response = await fetchClientRequests();
         const formatted: ApprovedEntry[] = response
-          .filter((item: any) => item.status === "APPROVED")
+          .filter((item: any) => ["APPROVED", "REJECTED"].includes(item.status))
           .map((item: any) => ({
             clientName: item.company_name,
             requestedAmount: item.credit_amount,
             departmentName: item.department_name,
             companyCode: item.company_code,
             timestamp: item.requested_at,
-            status: item.status === "APPROVED" ? "Approved" : "Rejected", // 🔥 Map properly
+            status: item.status === "APPROVED" ? "Approved" : "Rejected",
           }));
         setChartData(formatted);
       } catch (e) {
@@ -58,16 +57,33 @@ export const ChartDataProvider = ({
     }
 
     return chartData
-      .filter(
-        (entry) =>
-          new Date(entry.timestamp).toDateString() === date.toDateString()
-      )
+      .filter((entry) => new Date(entry.timestamp).toDateString() === date.toDateString())
       .reduce((sum, entry) => sum + entry.requestedAmount, 0);
+  };
+
+  const getClientSummary = (clientName: string, date?: Date | null): ClientSummary => {
+    const filtered = chartData.filter((entry) => {
+      const matchesClient = entry.clientName === clientName;
+      const matchesDate = date
+        ? new Date(entry.timestamp).toDateString() === date.toDateString()
+        : true;
+      return matchesClient && matchesDate;
+    });
+
+    const approvedAmount = filtered
+      .filter((entry) => entry.status === "Approved")
+      .reduce((sum, entry) => sum + entry.requestedAmount, 0);
+
+    const rejectedAmount = filtered
+      .filter((entry) => entry.status === "Rejected")
+      .reduce((sum, entry) => sum + entry.requestedAmount, 0);
+
+    return { approvedAmount, rejectedAmount };
   };
 
   return (
     <ChartDataContext.Provider
-      value={{ chartData, setChartData, getTotalIncreasedAmount }}
+      value={{ chartData, setChartData, getTotalIncreasedAmount, getClientSummary }}
     >
       {children}
     </ChartDataContext.Provider>

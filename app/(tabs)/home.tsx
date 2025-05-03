@@ -21,6 +21,7 @@ import {
   TouchableOpacity,
   View,
   ScrollView,
+  RefreshControl,
 } from "react-native";
 import Toast from "react-native-toast-message";
 import { useChartData } from "@/context/ChartDataContext";
@@ -28,25 +29,26 @@ import {
   fetchClientRequests,
   approveRequest,
   rejectRequest,
+  sendBackRequest,
 } from "@/utils/api";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSelectedRequest } from "@/context/SelectedRequestContext";
-import { RefreshControl } from "react-native";
 
 type Client = {
   id: string;
   clientName: string;
   currentBalance: number;
   requestedAmount: number;
-  status: "Pending" | "Approved" | "Rejected"| "On hold";
+  status: "Pending" | "Approved" | "Rejected" | "On hold";
   timestamp: string;
   rejectionNote?: string;
   reason?: string;
   departmentName: string;
   companyCode: string;
-  decisionTime?: string; // ✅ Add this
+  decisionTime?: string;
   approver?: string;
+  name?: string;
 };
 
 export default function HomeScreen() {
@@ -54,23 +56,26 @@ export default function HomeScreen() {
   const [search, setSearch] = useState("");
   const [clients, setClients] = useState<Client[]>([]);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [selectedAction, setSelectedAction] = useState<
-    "accept" | "reject" | ""
-  >("");
+  const [selectedAction, setSelectedAction] = useState<"accept" | "reject" | "">("");
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [rejectionNote, setRejectionNote] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [additionalInfo, setAdditionalInfo] = useState("");
-
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
   const { chartData, setChartData, getTotalIncreasedAmount } = useChartData();
   const insets = useSafeAreaInsets();
   const { setSelectedRequest } = useSelectedRequest();
+
   const [showSearch, setShowSearch] = useState(false);
   const searchInputRef = useRef<TextInput>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<"All" | "Pending" | "On hold">("All");
+  const [requesterFilter, setRequesterFilter] = useState<string>("All");
+  const [showFilters, setShowFilters] = useState(false);
+  const [scrollY, setScrollY] = useState(0);
 
   useEffect(() => {
     if (showSearch) {
@@ -82,9 +87,8 @@ export default function HomeScreen() {
     setRefreshing(true);
     try {
       const response = await fetchClientRequests();
-console.log(response);
       const formattedClients: Client[] = response
-        .filter((item: any) => item.status === "PENDING")
+        .filter((item: any) => item.status === "PENDING" || item.status === "ON HOLD")
         .map((item: any) => ({
           id: item.request_id.toString(),
           clientName: item.company_name.replace(/^\s+/, ""),
@@ -98,8 +102,8 @@ console.log(response);
           companyCode: item.company_code,
           decisionTime: item.decision_time || null,
           approver: item.approver || null,
+          name: item.name || "",
         }));
-      // console.log(formattedClients);
 
       const formattedChartData = response
         .filter((item: any) => item.status === "APPROVED")
@@ -118,7 +122,7 @@ console.log(response);
         )
       );
 
-      setChartData(formattedChartData); // 🔄 sync chartData used in summary
+      setChartData(formattedChartData);
     } catch (e) {
       Toast.show({ type: "error", text1: "Failed to load requests." });
     } finally {
@@ -129,6 +133,22 @@ console.log(response);
   useEffect(() => {
     loadClientsAndChartData();
   }, []);
+
+  const uniqueRequesters = useMemo(() => {
+    const names = clients.map((c) => c.name).filter(Boolean);
+    return ["All", ...Array.from(new Set(names))];
+  }, [clients]);
+
+
+
+
+
+
+
+
+
+
+
 
   const [totalIncreased, setTotalIncreased] = useState(0);
 
@@ -151,69 +171,36 @@ console.log(response);
     }
   }, [showConfirm]);
 
-  const handleConfirmAction = async () => {
-    if (!selectedClient) return;
-    const decisionTimestamp = new Date().toISOString();
-    const approverName = "John Doe"; // Replace with actual session user if needed
-
-    try {
-      if (selectedAction === "accept") {
-        await approveRequest(selectedClient.id);
-      } else if (selectedAction === "reject") {
-        await rejectRequest(
-          selectedClient.id,
-          rejectionNote.trim() || "No comment"
-        );
-      }
-
-      // 🔥 Update chartData regardless of approve or reject
-      setChartData((prev) => [
-        ...prev,
-        {
-          clientName: selectedClient.clientName,
-          requestedAmount: selectedClient.requestedAmount,
-          departmentName: selectedClient.departmentName,
-          companyCode: selectedClient.companyCode,
-          timestamp: selectedClient.timestamp,
-          status: selectedAction === "accept" ? "Approved" : "Rejected", // 🔥 Add status field
-        },
-      ]);
-
-      // 🔥 Update local client list status
-      setClients((prev) =>
-        prev.map((client) =>
-          client.id === selectedClient.id
-            ? {
-                ...client,
-                status: selectedAction === "accept" ? "Approved" : "Rejected",
-                rejectionNote:
-                  selectedAction === "reject" && rejectionNote.trim()
-                    ? rejectionNote.trim()
-                    : undefined,
-                decisionTime: decisionTimestamp,
-                approver: approverName,
-              }
-            : client
-        )
-      );
-
-      Toast.show({
-        type: "success",
-        text1: `Request ${
-          selectedAction === "accept" ? "approved" : "rejected"
-        } successfully!`,
-      });
-    } catch (error) {
-      Toast.show({
-        type: "error",
-        text1: `Failed to ${selectedAction} request.`,
-      });
-    }
-
+  const handleConfirmAction = () => {
+    Toast.show({
+      type: "success",
+      text1: `Simulated ${selectedAction === "accept" ? "approval" : "rejection"}!`,
+    });
+  
     setShowConfirm(false);
     setSelectedClient(null);
     setSelectedAction("");
     setRejectionNote("");
+  };
+  
+  
+  const handleSendBack = async () => {
+    if (!selectedClient || !additionalInfo.trim()) return;
+  
+    try {
+      await sendBackRequest(selectedClient.id, additionalInfo.trim());
+  
+      Toast.show({ type: "success", text1: "Request sent for additional info!" });
+  
+      // Optionally refresh data from backend
+      await loadClientsAndChartData();
+    } catch (error) {
+      Toast.show({ type: "error", text1: "Failed to send request back." });
+    }
+  
+    setShowInfoModal(false);
+    setAdditionalInfo("");
+    setSelectedClient(null);
   };
 
   const isSameDate = (d1: string, d2: Date) =>
@@ -223,28 +210,22 @@ console.log(response);
     const matchesSearch = item.clientName
       .toLowerCase()
       .includes(search.toLowerCase());
+
     const matchesDate = selectedDate
       ? isSameDate(item.timestamp, selectedDate)
       : true;
-    return matchesSearch && item.status === "Pending" && matchesDate;
+
+    const matchesStatus =
+      statusFilter === "All" || item.status === statusFilter;
+
+    const matchesRequester =
+      requesterFilter === "All" || item.name === requesterFilter;
+
+    return matchesSearch && matchesDate && matchesStatus && matchesRequester;
   });
-
-  // ✅ Filter chartData instead of local clients
-  // const filteredChartData = useMemo(() => {
-  //   return selectedDate
-  //     ? chartData.filter((c) => isSameDate(c.timestamp, selectedDate))
-  //     : chartData;
-  // }, [chartData, selectedDate]);
-
-  // const totalApproved = useMemo(() => {
-  //   return filteredChartData.length;
-  // }, [filteredChartData]);
 
   const totalIncreasedAmount = getTotalIncreasedAmount(selectedDate);
 
-  // const totalRejected = useMemo(() => {
-  //   return filteredChartData.length;
-  // }, [filteredChartData]);
   const [expandedReasonIds, setExpandedReasonIds] = useState<string[]>([]);
 
   const toggleExpanded = (id: string) => {
@@ -253,9 +234,29 @@ console.log(response);
     );
   };
 
+  const getTimeAgo = (timestamp: string) => {
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diffMs = now.getTime() - time.getTime();
+    const diffHrs = diffMs / (1000 * 60 * 60);
+  
+    if (diffHrs < 24) {
+      return time.toLocaleTimeString("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }); // e.g., 14:32
+    } else {
+      return time.toLocaleDateString("en-GB"); // e.g., 02/12/2025
+    }
+  };
+  
+  
+
+  const capitalize = (text: string) =>
+    text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
+
   const renderItem = ({ item }: { item: Client }) => (
     <View style={styles.card}>
-      {/* Header: Dept Badge + Status Dot */}
       <View style={styles.cardHeader}>
         <View style={styles.deptBadge}>
           <Text style={styles.deptText}>{item.departmentName}</Text>
@@ -267,6 +268,8 @@ console.log(response);
               ? styles.chipApproved
               : item.status === "Rejected"
               ? styles.chipRejected
+              : item.status === "On hold"
+              ? styles.chipOnHold
               : styles.chipPending,
           ]}
         >
@@ -280,7 +283,20 @@ console.log(response);
           router.push("/request-detail-screen");
         }}
       >
-        <Text style={styles.clientName}>{item.clientName}</Text>
+    <View style={styles.clientRow}>
+  <View style={styles.clientNameWrapper}>
+    <Text
+      style={styles.clientName}
+      numberOfLines={1}
+      ellipsizeMode="tail"
+    >
+      {item.clientName}
+    </Text>
+  </View>
+  <Text style={styles.timeText}>{getTimeAgo(item.timestamp)}</Text>
+</View>
+
+
 
         <Text style={styles.label}>Requested Amount:</Text>
         <Text style={styles.value}>
@@ -315,7 +331,6 @@ console.log(response);
         )}
       </TouchableOpacity>
 
-      {/* Request Additional Info (Moved Above) */}
       <TouchableOpacity
         style={styles.additionalInfoButton}
         onPress={() => {
@@ -326,7 +341,7 @@ console.log(response);
         <Ionicons name="chatbox-ellipses-outline" size={16} color="#1E1E4B" />
         <Text style={styles.additionalInfoText}>Request Additional Info</Text>
       </TouchableOpacity>
-      {/* Action Buttons */}
+
       <View style={styles.statusRow}>
         <View style={styles.actionButtons}>
           <TouchableOpacity
@@ -358,341 +373,10 @@ console.log(response);
     </View>
   );
 
-  const capitalize = (text: string) =>
-    text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
 
-  const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: "#1E1E4B",
-    },
-    summaryContainer: {
-      flexDirection: "row",
-      justifyContent: "flex-start", // no spacing pushed in between
-      gap: 0, // safe measure
-      marginBottom: 4,
-    },
 
-    summaryCard: {
-      flex: 1,
-      backgroundColor: "#fff",
-      borderRadius: 16,
-      paddingVertical: 14,
-      justifyContent: "center",
-      alignItems: "center",
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 6,
-      elevation: 2,
-      marginBottom: 12,
-    },
 
-    summaryCardLeft: {
-      marginRight: 12, // adds a controlled gap between the two cards
-    },
-
-    summaryCardFull: {
-      backgroundColor: "#fff",
-      borderRadius: 16,
-      paddingVertical: 12,
-      //paddingHorizontal: 15,
-      justifyContent: "center",
-      alignItems: "center",
-      width: "100%",
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 6,
-      elevation: 2,
-      marginBottom: 2,
-    },
-    safeArea: {
-      flex: 1,
-      backgroundColor: "#1E1E4B",
-    },
-
-    summaryTitle: {
-      fontSize: 14,
-      color: "#1E1E4B",
-      fontWeight: "600",
-      marginBottom: 6,
-      textAlign: "center",
-    },
-    summaryValue: {
-      fontSize: 18,
-      fontWeight: "bold",
-      color: "#1E1E4B",
-    },
-    dateFilterButton: {
-      backgroundColor: "#fff",
-      flexDirection: "row",
-      alignItems: "center",
-      paddingVertical: 6,
-      paddingHorizontal: 16,
-      borderRadius: 20,
-    },
-    dateFilterText: {
-      color: "#1E1E4B",
-      fontWeight: "bold",
-      marginLeft: 6,
-    },
-    searchInput: {
-      backgroundColor: "#fff",
-      borderRadius: 10, // slightly rounder
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      fontSize: 14,
-      shadowColor: "#000",
-      shadowOpacity: 0.08,
-      shadowRadius: 4,
-      shadowOffset: { width: 0, height: 2 },
-      elevation: 8,
-      marginBottom: 3,
-    },
-    sectionTitle: {
-      fontSize: 18,
-      color: "#fff",
-      fontWeight: "bold",
-      marginBottom: 12,
-      marginTop: 4,
-    },
-    listContainer: {
-      paddingBottom: 20,
-    },
-    card: {
-      backgroundColor: "#fff",
-      borderRadius: 16,
-      padding: 20,
-      marginBottom: 12,
-      shadowColor: "#000",
-      shadowOpacity: 0.1,
-      shadowRadius: 6,
-      shadowOffset: { width: 0, height: 2 },
-      elevation: 5,
-    },
-    clientName: {
-      fontSize: 20,
-      fontWeight: "bold",
-      color: "#1E1E4B",
-      marginBottom: 2,
-    },
-    label: {
-      fontSize: 14,
-      color: "#888",
-    },
-    value: {
-      fontSize: 14,
-      fontWeight: "600",
-      color: "#333",
-      marginBottom: 4,
-    },
-    // status: {
-    //   fontSize: 16,
-    //   fontWeight: "bold",
-    //   flex: 1,
-    // },
-    // timestamp: {
-    //   fontSize: 12,
-    //   color: "#666",
-    //   flex: 1,
-    //   textAlign: "right",
-    // },
-    // pending: {
-    //   color: "#F5A623",
-    // },
-    statusRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      flexWrap: "wrap",
-      marginTop: 8,
-    },
-    iconButton: {
-      flex: 1,
-      paddingVertical: 10,
-      borderRadius: 20,
-      justifyContent: "center",
-      alignItems: "center",
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 3,
-    }
-    ,
-
-    actionButtons: {
-      flexDirection: "row",
-      flex: 1,
-      justifyContent: "center",
-      alignItems: "center",
-      gap: 80, // smaller gap between Approve and Reject
-    },
-
-    modalOverlay: {
-      flex: 1,
-      backgroundColor: "rgba(0, 0, 0, 0.5)",
-      justifyContent: "center",
-      alignItems: "center",
-    },
-    confirmModal: {
-      backgroundColor: "#fff",
-      padding: 20,
-      borderRadius: 12,
-      marginHorizontal: 16,
-      shadowColor: "#000",
-      shadowOpacity: 0.2,
-      shadowRadius: 6,
-      shadowOffset: { width: 0, height: 2 },
-      elevation: 8,
-    },
-    confirmText: {
-      fontSize: 16,
-      color: "#1E1E4B",
-      textAlign: "center",
-      marginBottom: 16,
-    },
-    rejectionInput: {
-      backgroundColor: "#f2f2f2",
-      padding: 10,
-      borderRadius: 8,
-      fontSize: 14,
-      color: "#1E1E4B",
-      marginBottom: 12,
-      textAlignVertical: "top",
-      minHeight: 60,
-    },
-    confirmActions: {
-      flexDirection: "row",
-      justifyContent: "space-evenly",
-    },
-    confirmBtn: {
-      paddingVertical: 10,
-      paddingHorizontal: 20,
-      borderRadius: 8,
-    },
-    cardHeader: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: 4,
-    },
-
-    deptBadge: {
-      backgroundColor: "#E8EAF6",
-      paddingVertical: 2,
-      paddingHorizontal: 10,
-      borderRadius: 8,
-    },
-
-    deptText: {
-      fontSize: 12,
-      fontWeight: "600",
-      color: "#1E1E4B",
-    },
-
-    statusChip: {
-      borderRadius: 20,
-      paddingHorizontal: 10,
-      paddingVertical: 2,
-      alignSelf: "flex-end",
-      marginTop: -4,
-      marginRight: -4,
-      elevation: 2,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.1,
-      shadowRadius: 2,
-    },
-    chipText: {
-      fontSize: 12,
-      fontWeight: "600",
-      color: "#fff",
-    },
-
-    chipPending: {
-      backgroundColor: "#F5A623",
-    },
-
-    chipApproved: {
-      backgroundColor: "#27AE60",
-    },
-
-    chipRejected: {
-      backgroundColor: "#E74C3C",
-    },
-
-    buttonRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      marginTop: 16,
-    },
-
-    actionButton: {
-      flex: 1,
-      paddingVertical: 10,
-      borderRadius: 10,
-      alignItems: "center",
-      marginHorizontal: 4,
-    },
-
-    buttonText: {
-      color: "#fff",
-      fontWeight: "bold",
-    },
-
-    infoIconWrapper: {
-      backgroundColor: "#F1F1F1",
-      borderRadius: 20,
-      padding: 6,
-    },
-
-    showToggle: {
-      color: "#1E1E4B",
-      fontSize: 13,
-      fontWeight: "500",
-      marginTop: 4,
-    },
-    additionalInfoButton: {
-      flexDirection: "row",
-      alignItems: "center",
-      alignSelf: "flex-start",
-      marginTop: 4,
-      marginBottom: 4,
-      paddingVertical: 6,
-      paddingHorizontal: 12,
-      borderRadius: 20,
-      backgroundColor: "#F1F1F1",
-      shadowColor: "#000",
-      shadowOpacity: 0.1,
-      shadowOffset: { width: 0, height: 1 },
-      shadowRadius: 2,
-      elevation: 2,
-    },
-
-    additionalInfoText: {
-      marginLeft: 6,
-      fontSize: 13,
-      fontWeight: "500",
-      color: "#1E1E4B",
-    },
-
-    floatingSearchBtn: {
-      position: "absolute",
-      top: 10,
-      right: 16,
-      zIndex: 10,
-      backgroundColor: "#1E1E4B",
-      padding: 10,
-      borderRadius: 30,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.2,
-      shadowRadius: 4,
-      elevation: 5,
-    },
-  });
+  
   return (
     <SafeAreaView style={styles.safeArea}>
       <View
@@ -704,115 +388,125 @@ console.log(response);
         }}
       >
         <StatusBar hidden />
-
         <Modal
-          transparent
-          animationType="fade"
-          visible={showConfirm}
-          onRequestClose={() => setShowConfirm(false)}
+  transparent
+  animationType="fade"
+  visible={showConfirm}
+  onRequestClose={() => setShowConfirm(false)}
+>
+  <View style={styles.modalOverlay}>
+    <View style={styles.confirmModal}>
+      <Text style={styles.confirmText}>
+        Are you sure you want to{" "}
+        {selectedAction === "accept" ? "approve" : "reject"} the request for{" "}
+        {selectedClient?.clientName}?
+      </Text>
+
+      {selectedAction === "reject" && (
+        <TextInput
+          placeholder="Optional: reason for rejection"
+          placeholderTextColor="#999"
+          style={styles.rejectionInput}
+          value={rejectionNote}
+          onChangeText={setRejectionNote}
+          multiline
+        />
+      )}
+
+      <View style={styles.confirmActions}>
+        <TouchableOpacity
+          style={[
+            styles.confirmBtn,
+            {
+              backgroundColor:
+                selectedAction === "accept" ? "#2E7D32" : "#C62828",
+            },
+          ]}
+          onPress={handleConfirmAction}
         >
-          <View style={styles.modalOverlay}>
-            <View style={styles.confirmModal}>
-              <Text style={styles.confirmText}>
-                Are you sure you want to{" "}
-                {selectedAction === "accept" ? "approve" : "reject"} the request
-                for {selectedClient?.clientName}?
-              </Text>
+          <Text style={{ color: "#fff", fontWeight: "bold" }}>
+            {selectedAction === "accept" ? "Approve" : "Reject"}
+          </Text>
+        </TouchableOpacity>
 
-              {selectedAction === "reject" && (
-                <TextInput
-                  placeholder="Optional: reason for rejection"
-                  placeholderTextColor="#999"
-                  style={styles.rejectionInput}
-                  value={rejectionNote}
-                  onChangeText={setRejectionNote}
-                  multiline
-                />
-              )}
-
-              <View style={styles.confirmActions}>
-                <TouchableOpacity
-                  style={[
-                    styles.confirmBtn,
-                    {
-                      backgroundColor:
-                        selectedAction === "accept" ? "#2E7D32" : "#C62828", // Green if accept, Red if reject
-                    },
-                  ]}
-                  onPress={handleConfirmAction}
-                >
-                  <Text style={{ color: "#fff", fontWeight: "bold" }}>
-                    {selectedAction === "accept" ? "Approve" : "Reject"}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.confirmBtn, { backgroundColor: "#999999" }]} // Always grey for cancel
-                  onPress={() => {
-                    setShowConfirm(false);
-                    setSelectedClient(null);
-                    setSelectedAction("");
-                    setRejectionNote("");
-                  }}
-                >
-                  <Text style={{ color: "#fff", fontWeight: "bold" }}>
-                    Cancel
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </Modal>
-
-        <Modal
-          transparent
-          visible={showInfoModal}
-          animationType="slide"
-          onRequestClose={() => setShowInfoModal(false)}
+        <TouchableOpacity
+          style={[styles.confirmBtn, { backgroundColor: "#999999" }]}
+          onPress={() => {
+            setShowConfirm(false);
+            setSelectedClient(null);
+            setSelectedAction("");
+            setRejectionNote("");
+          }}
         >
-          <View style={styles.modalOverlay}>
-            <View style={styles.confirmModal}>
-              <Text style={styles.confirmText}>
-                Enter additional info required for {selectedClient?.clientName}:
-              </Text>
-              <TextInput
-                placeholder="E.g. Need updated documents"
-                placeholderTextColor="#999"
-                value={additionalInfo}
-                onChangeText={setAdditionalInfo}
-                multiline
-                style={styles.rejectionInput}
-              />
+          <Text style={{ color: "#fff", fontWeight: "bold" }}>Cancel</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </View>
+</Modal>
+<Modal
+  transparent
+  visible={showInfoModal}
+  animationType="fade"
+  onRequestClose={() => setShowInfoModal(false)}
+>
+  <View style={styles.modalOverlay}>
+    <View style={styles.confirmModal}>
+      <Text style={styles.confirmText}>
+        Enter additional info required for {selectedClient?.clientName}:
+      </Text>
+      <TextInput
+        placeholder="E.g. Upload recent documents"
+        placeholderTextColor="#999"
+        value={additionalInfo}
+        onChangeText={setAdditionalInfo}
+        multiline
+        style={styles.rejectionInput}
+      />
 
-              <View style={styles.confirmActions}>
-                <TouchableOpacity
-                  onPress={() => {
-                    // simulate action
-                    Toast.show({ type: "success", text1: "Request sent!" });
-                    setShowInfoModal(false);
-                    setAdditionalInfo("");
-                  }}
-                  style={[styles.confirmBtn, { backgroundColor: "#1E1E4B" }]}
-                >
-                  <Text style={{ color: "#fff", fontWeight: "bold" }}>
-                    Send
-                  </Text>
-                </TouchableOpacity>
+      <View style={styles.confirmActions}>
+        <TouchableOpacity
+          onPress={handleSendBack}
+          style={[styles.confirmBtn, { backgroundColor: "#1E1E4B" }]}
+        >
+          <Text style={{ color: "#fff", fontWeight: "bold" }}>Send</Text>
+        </TouchableOpacity>
 
-                <TouchableOpacity
-                  onPress={() => setShowInfoModal(false)}
-                  style={[styles.confirmBtn, { backgroundColor: "#999999" }]}
-                >
-                  <Text style={{ color: "#fff", fontWeight: "bold" }}>
-                    Cancel
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+        <TouchableOpacity
+          onPress={() => {
+            setShowInfoModal(false);
+            setAdditionalInfo("");
+            setSelectedClient(null);
+          }}
+          style={[styles.confirmBtn, { backgroundColor: "#999999" }]}
+        >
+          <Text style={{ color: "#fff", fontWeight: "bold" }}>Cancel</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </View>
+</Modal>
+
+
+
+
+
+
+        {/* Summary Cards */}
+        <View style={[styles.summaryContainer, { justifyContent: "center" }]}>
+          <View style={styles.summaryCardFull}>
+            <Text style={styles.summaryTitle}>Total Increased</Text>
+            <Text style={[styles.summaryValue, { fontSize: 22 }]}>
+              AED{" "}
+              {totalIncreasedAmount.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </Text>
           </View>
-        </Modal>
+        </View>
 
-        {/* Filter by Date + Search Icon Row */}
+        {/* Filter & Search Row */}
         <View
           style={{
             flexDirection: "row",
@@ -822,7 +516,6 @@ console.log(response);
             position: "relative",
           }}
         >
-          {/* Filter by Date Button */}
           <TouchableOpacity
             onPress={() => setShowDatePicker(true)}
             style={styles.dateFilterButton}
@@ -835,24 +528,40 @@ console.log(response);
             </Text>
           </TouchableOpacity>
 
-          {/* Search Icon Toggle */}
-          {!showSearch && (
+          <View
+            style={{
+              position: "absolute",
+              right: 0,
+              flexDirection: "row",
+              gap: 8,
+            }}
+          >
             <TouchableOpacity
               style={{
-                position: "absolute",
-                right: 0,
                 backgroundColor: "#1E1E4B",
                 borderRadius: 20,
                 padding: 10,
               }}
-              onPress={() => setShowSearch(true)}
+              onPress={() => setShowFilters((prev) => !prev)}
             >
-              <Ionicons name="search" size={20} color="#fff" />
+              <Ionicons name="filter-outline" size={20} color="#fff" />
             </TouchableOpacity>
-          )}
+
+            {!showSearch && (
+              <TouchableOpacity
+                style={{
+                  backgroundColor: "#1E1E4B",
+                  borderRadius: 20,
+                  padding: 10,
+                }}
+                onPress={() => setShowSearch(true)}
+              >
+                <Ionicons name="search" size={20} color="#fff" />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
-        {/* Optional: Clear Date Link */}
         {selectedDate && (
           <TouchableOpacity
             onPress={() => setSelectedDate(null)}
@@ -864,7 +573,7 @@ console.log(response);
                 fontSize: 14,
                 textDecorationLine: "underline",
                 fontWeight: "500",
-                textAlign: "left",
+                textAlign: "center",
               }}
             >
               Clear Date Filter
@@ -907,7 +616,6 @@ console.log(response);
                     themeVariant="light"
                     style={{ backgroundColor: "#fff" }}
                   />
-
                   <View
                     style={{
                       flexDirection: "row",
@@ -963,28 +671,14 @@ console.log(response);
           )
         ) : null}
 
-        {/* Summary Cards */}
-        <View style={[styles.summaryContainer, { justifyContent: "center" }]}>
-          <View style={styles.summaryCardFull}>
-            <Text style={styles.summaryTitle}>Total Increased</Text>
-            <Text style={[styles.summaryValue, { fontSize: 22 }]}>
-              AED{" "}
-              {totalIncreasedAmount.toLocaleString("en-US", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </Text>
-          </View>
-        </View>
-
-        {/* Search */}
+        {/* Search Input */}
         {showSearch && (
           <View style={{ position: "relative", marginBottom: 12 }}>
             <TextInput
               ref={searchInputRef}
               placeholder="Search by client name..."
               placeholderTextColor="#aaa"
-              style={[styles.searchInput, { paddingRight: 40 }]} // add space for icon
+              style={[styles.searchInput, { paddingRight: 40 }]}
               value={search}
               onChangeText={setSearch}
             />
@@ -1004,21 +698,80 @@ console.log(response);
           </View>
         )}
 
-        {filteredData.length > 0 && (
-          <Text style={styles.sectionTitle}>Pending Requests</Text>
+        {/* Filters */}
+        {showFilters && (
+          <>
+            <View style={styles.filtersContainer}>
+              {["All", "Pending", "On hold"].map((status) => (
+                <TouchableOpacity
+                  key={status}
+                  onPress={() =>
+                    setStatusFilter(status as typeof statusFilter)
+                  }
+                  style={[
+                    styles.filterButton,
+                    statusFilter === status && styles.activeFilter,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.filterText,
+                      statusFilter === status && styles.activeFilterText,
+                    ]}
+                  >
+                    {status}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={styles.filtersContainer}>
+              {uniqueRequesters.map((name) => (
+                <TouchableOpacity
+                  key={name}
+                  onPress={() => setRequesterFilter(name)}
+                  style={[
+                    styles.filterButton,
+                    requesterFilter === name && styles.activeFilter,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.filterText,
+                      requesterFilter === name && styles.activeFilterText,
+                    ]}
+                  >
+                    {name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
         )}
+
+        {/* List of Requests */}
         <ScrollView
+          onScroll={(event) => {
+            const y = event.nativeEvent.contentOffset.y;
+            setScrollY(y);
+
+            if (y > 150) {
+              setShowSearch(false);
+              setShowFilters(false);
+            }
+          }}
+          scrollEventThrottle={16}
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={loadClientsAndChartData}
+              progressBackgroundColor="#1E1E4B"
+          
             />
           }
         >
-          {/* Cards */}
-          {/* {filteredData.map((item) => renderItem({ item }))} */}
           {filteredData.map((item) => (
             <View key={item.id}>{renderItem({ item })}</View>
           ))}
@@ -1029,3 +782,406 @@ console.log(response);
     </SafeAreaView>
   );
 }
+
+
+
+
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#1E1E4B",
+  },
+  summaryContainer: {
+    flexDirection: "row",
+    justifyContent: "flex-start", // no spacing pushed in between
+    gap: 0, // safe measure
+    marginBottom: 4,
+  },
+
+  summaryCard: {
+    flex: 1,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    paddingVertical: 14,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+    marginBottom: 12,
+  },
+
+  summaryCardLeft: {
+    marginRight: 12, // adds a controlled gap between the two cards
+  },
+
+  summaryCardFull: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    paddingVertical: 12,
+    //paddingHorizontal: 15,
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+    marginBottom: 2,
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#1E1E4B",
+  },
+
+  summaryTitle: {
+    fontSize: 14,
+    color: "#1E1E4B",
+    fontWeight: "600",
+    marginBottom: 6,
+    textAlign: "center",
+  },
+  summaryValue: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1E1E4B",
+  },
+  dateFilterButton: {
+    backgroundColor: "#fff",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+  },
+  dateFilterText: {
+    color: "#1E1E4B",
+    fontWeight: "bold",
+    marginLeft: 6,
+  },
+  searchInput: {
+    backgroundColor: "#fff",
+    borderRadius: 10, // slightly rounder
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 14,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 8,
+    marginBottom: 3,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    color: "#fff",
+    fontWeight: "bold",
+    marginBottom: 12,
+    marginTop: 4,
+  },
+  listContainer: {
+    paddingBottom:20,
+  },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 5,
+  },
+  
+  label: {
+    fontSize: 14,
+    color: "#888",
+  },
+  value: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 4,
+  },
+  // status: {
+  //   fontSize: 16,
+  //   fontWeight: "bold",
+  //   flex: 1,
+  // },
+  // timestamp: {
+  //   fontSize: 12,
+  //   color: "#666",
+  //   flex: 1,
+  //   textAlign: "right",
+  // },
+  // pending: {
+  //   color: "#F5A623",
+  // },
+  statusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    marginTop: 8,
+  },
+  iconButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  actionButtons: {
+    flexDirection: "row",
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 80, // smaller gap between Approve and Reject
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  confirmModal: {
+    backgroundColor: "#fff",
+    padding: 20,
+    borderRadius: 12,
+    marginHorizontal: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 8,
+  },
+  confirmText: {
+    fontSize: 16,
+    color: "#1E1E4B",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  rejectionInput: {
+    backgroundColor: "#f2f2f2",
+    padding: 10,
+    borderRadius: 8,
+    fontSize: 14,
+    color: "#1E1E4B",
+    marginBottom: 12,
+    textAlignVertical: "top",
+    minHeight: 60,
+  },
+  confirmActions: {
+    flexDirection: "row",
+    justifyContent: "space-evenly",
+  },
+  confirmBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  cardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+
+  deptBadge: {
+    backgroundColor: "#E8EAF6",
+    paddingVertical: 2,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+
+  deptText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#1E1E4B",
+  },
+
+  statusChip: {
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+    alignSelf: "flex-end",
+    marginTop: -4,
+    marginRight: -4,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  chipText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#fff",
+  },
+
+  chipPending: {
+    backgroundColor: "#F5A623",
+  },
+
+  chipApproved: {
+    backgroundColor: "#27AE60",
+  },
+
+  chipRejected: {
+    backgroundColor: "#E74C3C",
+  },
+  chipOnHold: {
+    backgroundColor: "#2196F3", // Blue
+  },
+
+  buttonRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 16,
+  },
+
+  actionButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: "center",
+    marginHorizontal: 4,
+  },
+
+  buttonText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+
+  infoIconWrapper: {
+    backgroundColor: "#F1F1F1",
+    borderRadius: 20,
+    padding: 6,
+  },
+
+  showToggle: {
+    color: "#1E1E4B",
+    fontSize: 13,
+    fontWeight: "500",
+    marginTop: 4,
+  },
+  additionalInfoButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    marginTop: 4,
+    marginBottom: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: "#F1F1F1",
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 2,
+    elevation: 2,
+  },
+
+  additionalInfoText: {
+    marginLeft: 6,
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#1E1E4B",
+  },
+
+  floatingSearchBtn: {
+    position: "absolute",
+    top: 10,
+    right: 16,
+    zIndex: 10,
+    backgroundColor: "#1E1E4B",
+    padding: 10,
+    borderRadius: 30,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  header: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#fff",
+    textAlign: "left",
+  },
+  filterChip: {
+    backgroundColor: "#444",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: "#888",
+  },
+  activeChip: {
+    backgroundColor: "#fff",
+  },
+
+  filtersContainer: {
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    marginBottom: 6,
+    flexWrap: "wrap",
+  },
+  filterButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    backgroundColor: "#3D3D6B",
+    margin: 4,
+    marginHorizontal: 8, // ⬅️ Use this instead of generic `margin`
+    marginVertical: 2,
+  },
+  filterText: {
+    color: "#aaa",
+    fontSize: 12,
+  },
+  activeFilter: {
+    backgroundColor: "#fff",
+  },
+  activeFilterText: {
+    color: "#1E1E4B",
+    fontWeight: "bold",
+  },
+  clientRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 2,
+  },
+  
+  clientNameWrapper: {
+    flex: 1,
+  paddingRight:50 // ensures spacing before time
+  },
+  
+  clientName: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1E1E4B",
+  },
+  
+  timeText: {
+    fontSize: 11,
+    color: "#999",
+    minWidth: 52, // ensure fixed space for consistent right alignment
+    textAlign: "right",
+  },  
+  
+});

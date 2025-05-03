@@ -5,31 +5,31 @@ import {
   StyleSheet,
   SafeAreaView,
   TouchableOpacity,
-  Platform,
   ScrollView,
+  TextInput,
+  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import React, { useEffect, useState } from "react";
+import Toast from "react-native-toast-message";
 import { useSelectedRequest } from "@/context/SelectedRequestContext";
-import { Modal } from "react-native";
-import { TextInput } from "react-native"; // if rejection note is allowed
+import { approveRequest, rejectRequest } from "@/utils/api";
+import { useChartData } from "@/context/ChartDataContext";
+import { ClientRequest, useClientRequests } from "@/context/ClientRequestContext";
+
 
 export default function RequestDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { selectedRequest, setSelectedRequest } = useSelectedRequest();
   const [showConfirm, setShowConfirm] = useState(false);
-  const [selectedAction, setSelectedAction] = useState<
-    "accept" | "reject" | ""
-  >("");
-  const [rejectionNoteInput, setRejectionNoteInput] = useState("");
+  const [selectedAction, setSelectedAction] = useState<"accept" | "reject" | "">("");
+  const [rejectionNote, setRejectionNote] = useState("");
 
   useEffect(() => {
-    return () => {
-      setSelectedRequest(null);
-    };
-  }, [setSelectedRequest]);
+    return () => setSelectedRequest(null);
+  }, []);
 
   if (!selectedRequest) {
     return (
@@ -51,33 +51,54 @@ export default function RequestDetailScreen() {
     timestamp,
     decisionTime,
     approver,
-    rejectionNote,
+    rejectionNote: existingRejectionNote,
     reason,
   } = selectedRequest;
 
+  const [localStatus, setLocalStatus] = useState(status);
+  const [localDecisionTime, setLocalDecisionTime] = useState(decisionTime);
+  const [localApprover, setLocalApprover] = useState(approver);
+  const [localRejectionNote, setLocalRejectionNote] = useState(existingRejectionNote);
+
+  const { getClientSummary } = useChartData();
+  const { approvedAmount, rejectedAmount } = getClientSummary(clientName);
+  const { setRequests } = useClientRequests();
+
+
+  const handleConfirmAction = () => {
+    Toast.show({
+      type: "success",
+      text1: `Simulated ${selectedAction === "accept" ? "approval" : "rejection"}!`,
+    });
+  
+    setShowConfirm(false);
+    setSelectedAction("");
+    setRejectionNote("");
+  };
+  
+  
+  
+  
+  
+
   return (
     <SafeAreaView style={styles.safeArea}>
+      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <Ionicons name="arrow-back" size={24} color="#fff" />
+      </TouchableOpacity>
+
       <ScrollView
         contentContainerStyle={{
           flexGrow: 1,
-          paddingTop: Platform.OS === "android" ? insets.top + 4 : 0,
           paddingBottom: insets.bottom + 16,
           paddingHorizontal: 16,
         }}
         showsVerticalScrollIndicator={false}
-        bounces={true}
       >
         <Stack.Screen options={{ headerShown: false }} />
 
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
-
         <View style={styles.card}>
-          {/* Header: Dept Badge + Status Chip */}
+          {/* Department + Status */}
           <View style={styles.cardHeader}>
             <View style={styles.deptBadge}>
               <Text style={styles.deptText}>{departmentName}</Text>
@@ -85,28 +106,33 @@ export default function RequestDetailScreen() {
             <View
               style={[
                 styles.statusChip,
-                status === "Approved"
+                localStatus === "Approved"
                   ? styles.chipApproved
-                  : status === "Rejected"
+                  : localStatus === "Rejected"
                   ? styles.chipRejected
+                  : localStatus === "On hold"
+                  ? styles.chipOnHold
                   : styles.chipPending,
               ]}
             >
-              <Text style={styles.chipText}>{status.toUpperCase()}</Text>
+              <Text style={styles.chipText}>{localStatus.toUpperCase()}</Text>
             </View>
           </View>
-          <Text style={styles.clientName}>{clientName}</Text>
 
+          <Text style={styles.clientName}>{clientName}</Text>
           <Text style={styles.label}>Company Code</Text>
           <Text style={styles.value}>{companyCode}</Text>
-
-          <View style={styles.separator} />
 
           <Text style={styles.label}>Current Balance</Text>
           <Text style={styles.value}>AED {currentBalance}</Text>
 
           <Text style={styles.label}>Requested Amount</Text>
-          <Text style={styles.value}>AED {requestedAmount}</Text>
+          <Text style={styles.value}>
+            AED{" "}
+            {requestedAmount.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+            })}
+          </Text>
 
           {reason && (
             <>
@@ -118,133 +144,77 @@ export default function RequestDetailScreen() {
           <Text style={styles.label}>Requester</Text>
           <Text style={styles.value}>John Doe</Text>
 
-          <Text style={styles.label}>Updated At</Text>
-          <Text style={styles.value}>-</Text>
-
           <Text style={styles.label}>Submitted At</Text>
           <Text style={styles.value}>
-            {new Date(timestamp).toLocaleString("en-GB", {
-              day: "2-digit",
-              month: "short",
-              year: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
+            {new Date(timestamp).toLocaleString("en-GB")}
           </Text>
 
-          {status !== "Pending" && (
+          {localStatus !== "Pending" && (
             <>
-              <View style={styles.separator} />
               <Text style={styles.label}>Decision Time</Text>
               <Text style={styles.value}>
-                {decisionTime
-                  ? new Date(decisionTime).toLocaleString("en-GB", {
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
+                {localDecisionTime
+                  ? new Date(localDecisionTime).toLocaleString("en-GB")
                   : "-"}
               </Text>
-
               <Text style={styles.label}>Approver</Text>
-              <Text style={styles.value}>{approver || "-"}</Text>
+              <Text style={styles.value}>{localApprover || "-"}</Text>
             </>
           )}
 
-          {status === "Rejected" && rejectionNote && (
+          {localStatus === "Rejected" && localRejectionNote && (
             <>
-              <View style={styles.separator} />
               <Text style={styles.label}>Rejection Note</Text>
-              <Text style={styles.note}>{rejectionNote}</Text>
+              <Text style={styles.note}>{localRejectionNote}</Text>
             </>
           )}
 
-          <View style={styles.statusRow}>
-            <View style={styles.actionButtons}>
-              <TouchableOpacity
-                style={[styles.iconButton, { backgroundColor: "#2E7D32" }]}
-                onPress={() => {
-                  setSelectedAction("accept");
-                  setShowConfirm(true);
-                }}
-              >
-                <Text
-                  style={{ color: "#fff", fontSize: 14, fontWeight: "bold" }}
+          {(localStatus === "Pending" || localStatus === "On hold") && (
+            <View style={styles.statusRow}>
+              <View style={styles.actionButtons}>
+                <TouchableOpacity
+                  style={[styles.iconButton, { backgroundColor: "#2E7D32" }]}
+                  onPress={() => {
+                    setSelectedAction("accept");
+                    setShowConfirm(true);
+                  }}
                 >
-                  APPROVE
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.iconButton, { backgroundColor: "#C62828" }]}
-                onPress={() => {
-                  setSelectedAction("reject");
-                  setShowConfirm(true);
-                }}
-              >
-                <Text
-                  style={{ color: "#fff", fontSize: 14, fontWeight: "bold" }}
+                  <Text style={styles.buttonText}>APPROVE</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.iconButton, { backgroundColor: "#C62828" }]}
+                  onPress={() => {
+                    setSelectedAction("reject");
+                    setShowConfirm(true);
+                  }}
                 >
-                  REJECT
-                </Text>
-              </TouchableOpacity>
+                  <Text style={styles.buttonText}>REJECT</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
+          )}
 
-          <View
-            style={{
-              flexDirection: "row",
-              flexWrap: "wrap",
-              justifyContent: "space-between",
-              marginTop: 24,
-            }}
-          >
+          {/* Stats */}
+          <View style={styles.summaryGrid}>
             <View style={styles.summaryBox}>
-              <Ionicons
-                name="swap-horizontal-outline"
-                size={20}
-                color="#1E1E4B"
-                style={{ marginBottom: 4 }}
-              />
-              <Text style={styles.summaryValue}>28</Text>
-              <Text style={styles.summaryLabel}>Transactions</Text>
-            </View>
-
-            <View style={styles.summaryBox}>
-              <Ionicons
-                name="document-text-outline"
-                size={20}
-                color="#1E1E4B"
-                style={{ marginBottom: 4 }}
-              />
-              <Text style={styles.summaryValue}>16</Text>
-              <Text style={styles.summaryLabel}>Invoices</Text>
-            </View>
-
-            <View style={styles.summaryBox}>
-              <Ionicons
-                name="checkmark-done-outline"
-                size={20}
-                color="#1E1E4B"
-                style={{ marginBottom: 4 }}
-              />
-              <Text style={styles.summaryValue}>19</Text>
+              <Ionicons name="checkmark-done-outline" size={20} color="#1E1E4B" />
+              <Text style={styles.summaryValue}>
+                AED {approvedAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              </Text>
               <Text style={styles.summaryLabel}>Approved</Text>
             </View>
 
             <View style={styles.summaryBox}>
-              <Ionicons
-                name="close-circle-outline"
-                size={20}
-                color="#1E1E4B"
-                style={{ marginBottom: 4 }}
-              />
-              <Text style={styles.summaryValue}>5</Text>
+              <Ionicons name="close-circle-outline" size={20} color="#1E1E4B" />
+              <Text style={styles.summaryValue}>
+                AED {rejectedAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              </Text>
               <Text style={styles.summaryLabel}>Rejected</Text>
             </View>
           </View>
         </View>
+
+        {/* Confirmation Modal */}
         <Modal
           transparent
           animationType="fade"
@@ -255,17 +225,17 @@ export default function RequestDetailScreen() {
             <View style={styles.confirmModal}>
               <Text style={styles.confirmText}>
                 Are you sure you want to{" "}
-                {selectedAction === "accept" ? "approve" : "reject"} the request
-                for {selectedRequest?.clientName}?
+                {selectedAction === "accept" ? "approve" : "reject"} the request for{" "}
+                {clientName}?
               </Text>
 
               {selectedAction === "reject" && (
                 <TextInput
                   placeholder="Optional: reason for rejection"
                   placeholderTextColor="#999"
-                  style={styles.rejectionNoteInput}
+                  style={styles.rejectionInput}
                   value={rejectionNote}
-                  onChangeText={setRejectionNoteInput}
+                  onChangeText={setRejectionNote}
                   multiline
                 />
               )}
@@ -279,13 +249,7 @@ export default function RequestDetailScreen() {
                         selectedAction === "accept" ? "#2E7D32" : "#C62828",
                     },
                   ]}
-                  onPress={() => {
-                    // handle action
-                    console.log(`${selectedAction.toUpperCase()} request`);
-                    setShowConfirm(false);
-                    setRejectionNoteInput("");
-                    setSelectedAction("");
-                  }}
+                  onPress={handleConfirmAction}
                 >
                   <Text style={{ color: "#fff", fontWeight: "bold" }}>
                     {selectedAction === "accept" ? "Approve" : "Reject"}
@@ -297,7 +261,7 @@ export default function RequestDetailScreen() {
                   onPress={() => {
                     setShowConfirm(false);
                     setSelectedAction("");
-                    setRejectionNoteInput("");
+                    setRejectionNote("");
                   }}
                 >
                   <Text style={{ color: "#fff", fontWeight: "bold" }}>
@@ -309,6 +273,8 @@ export default function RequestDetailScreen() {
           </View>
         </Modal>
       </ScrollView>
+
+      <Toast />
     </SafeAreaView>
   );
 }
@@ -319,7 +285,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#1E1E4B",
   },
   backButton: {
-    marginBottom: 16,
+    padding: 14,
+    marginVertical: 5,
   },
   card: {
     backgroundColor: "#fff",
@@ -337,7 +304,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 4,
   },
-
   clientName: {
     fontSize: 20,
     fontWeight: "bold",
@@ -359,12 +325,6 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     color: "#E74C3C",
     marginTop: 4,
-  },
-  separator: {
-    height: 1,
-    backgroundColor: "#eee",
-    marginVertical: 12,
-    marginBottom: 2,
   },
   deptBadge: {
     backgroundColor: "#E8EAF6",
@@ -390,24 +350,17 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#fff",
   },
-  chipPending: {
-    backgroundColor: "#F5A623",
-  },
-  chipApproved: {
-    backgroundColor: "#27AE60",
-  },
-  chipRejected: {
-    backgroundColor: "#E74C3C",
-  },
-
+  chipPending: { backgroundColor: "#F5A623" },
+  chipApproved: { backgroundColor: "#27AE60" },
+  chipRejected: { backgroundColor: "#E74C3C" },
+  chipOnHold: { backgroundColor: "#2196F3" },
   actionButtons: {
     flexDirection: "row",
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    gap: 80, // same as home page
+    gap: 80,
   },
-
   iconButton: {
     flex: 1,
     paddingVertical: 10,
@@ -427,7 +380,6 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     marginTop: 16,
   },
-
   buttonText: {
     color: "#fff",
     fontWeight: "bold",
@@ -473,16 +425,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 8,
-  },
-  rejectionNoteInput: {
-    backgroundColor: "#f2f2f2",
-    padding: 10,
-    borderRadius: 8,
-    fontSize: 14,
-    color: "#1E1E4B",
-    marginBottom: 12,
-    textAlignVertical: "top",
-    minHeight: 60,
   },
   summaryGrid: {
     flexDirection: "row",

@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "creditApp",
+    "name": "AYLINK",
     "slug": "creditApp",
-    "version": "1.0.1",  
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
@@ -10,21 +10,25 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.tenioduola.creditApp",
-      "buildNumber": "2",  
+      "bundleIdentifier": "com.tenioduola.aylink",
+      "buildNumber": "2",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "package": "com.tenioduola.creditApp",
-      "googleServicesFile": "./google-services.json",
-      "versionCode": 2 
-    },
+  "adaptiveIcon": {
+    "foregroundImage": "./assets/images/adaptive-icon.png",
+    "backgroundColor": "#ffffff"
+  },
+  "package": "com.tenioduola.creditApp",      
+  "googleServicesFile": "./google-services.json",
+  "versionCode": 2,
+  "permissions": [
+    "android.permission.USE_BIOMETRIC",
+    "android.permission.USE_FINGERPRINT"
+  ]
+},
     "web": {
       "bundler": "metro",
       "output": "static",
@@ -41,7 +45,7 @@
           "backgroundColor": "#ffffff"
         }
       ],
-        [
+      [
         "expo-local-authentication",
         {
           "faceIDPermission": "Allow $(PRODUCT_NAME) to use Face ID."
@@ -58,6 +62,7 @@
       "eas": {
         "projectId": "a867d74b-7553-431e-895b-c225b596ce03"
       }
-    }
+    },
+    "owner": "tenioduola"
   }
 }

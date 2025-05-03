@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "react-native";
 import * as LocalAuthentication from "expo-local-authentication";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -41,7 +42,7 @@ export default function LoginScreen() {
     });
 
     if (result.success) {
-      Alert.alert("Login Success", "Authenticated via Face ID!");
+      //Alert.alert("Login Success", "Authenticated via Face ID!");
       router.replace("/(tabs)/home");
     } else {
       Alert.alert(
@@ -51,7 +52,7 @@ export default function LoginScreen() {
     }
   };
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (blocked) {
       Alert.alert("Blocked", "Too many failed attempts. Try again later.");
       return;
@@ -78,7 +79,9 @@ export default function LoginScreen() {
     );
 
     if (isValid) {
-      Alert.alert("Login Success", "Welcome!");
+      // ✅ First successful login: save face ID flag
+      await AsyncStorage.setItem("faceIdEnabled", "true");
+      await AsyncStorage.setItem("email", email); // optional
       router.replace("/(tabs)/home");
     } else {
       const remaining = attemptsLeft - 1;
@@ -98,6 +101,29 @@ export default function LoginScreen() {
     }
   };
 
+  useEffect(() => {
+    const checkFaceId = async () => {
+      const faceIdEnabled = await AsyncStorage.getItem("faceIdEnabled");
+      if (faceIdEnabled === "true") {
+        const hasHardware = await LocalAuthentication.hasHardwareAsync();
+        const supported =
+          await LocalAuthentication.supportedAuthenticationTypesAsync();
+        const enrolled = await LocalAuthentication.isEnrolledAsync();
+
+        if (hasHardware && supported.length && enrolled) {
+          const result = await LocalAuthentication.authenticateAsync({
+            promptMessage: "Authenticate with Face ID",
+          });
+
+          if (result.success) {
+            router.replace("/(tabs)/home");
+          }
+        }
+      }
+    };
+
+    checkFaceId();
+  }, []);
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
@@ -210,7 +236,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   title: {
-    fontSize: 30,
+    fontSize: 34,
     fontWeight: "800",
     color: "#1E1E4B",
     textAlign: "center",
@@ -220,7 +246,7 @@ const styles = StyleSheet.create({
   subTitle: {
     fontSize: 14,
     color: "#666",
-    marginBottom: 24,
+    marginBottom: 2,
     textAlign: "center",
   },
   card: {
