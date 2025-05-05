@@ -14,18 +14,23 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import React, { useEffect, useState } from "react";
 import Toast from "react-native-toast-message";
 import { useSelectedRequest } from "@/context/SelectedRequestContext";
-import { approveRequest, rejectRequest } from "@/utils/api";
+import { approveRequest, fetchClientRequests, rejectRequest } from "@/utils/api";
 import { useChartData } from "@/context/ChartDataContext";
-import { ClientRequest, useClientRequests } from "@/context/ClientRequestContext";
-
+import {
+  ClientRequest,
+  useClientRequests,
+} from "@/context/ClientRequestContext";
 
 export default function RequestDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { selectedRequest, setSelectedRequest } = useSelectedRequest();
   const [showConfirm, setShowConfirm] = useState(false);
-  const [selectedAction, setSelectedAction] = useState<"accept" | "reject" | "">("");
+  const [selectedAction, setSelectedAction] = useState<
+    "accept" | "reject" | ""
+  >("");
   const [rejectionNote, setRejectionNote] = useState("");
+  const { updateRequestStatus } = useClientRequests();
 
   useEffect(() => {
     return () => setSelectedRequest(null);
@@ -58,28 +63,59 @@ export default function RequestDetailScreen() {
   const [localStatus, setLocalStatus] = useState(status);
   const [localDecisionTime, setLocalDecisionTime] = useState(decisionTime);
   const [localApprover, setLocalApprover] = useState(approver);
-  const [localRejectionNote, setLocalRejectionNote] = useState(existingRejectionNote);
+  const [localRejectionNote, setLocalRejectionNote] = useState(
+    existingRejectionNote
+  );
 
   const { getClientSummary } = useChartData();
   const { approvedAmount, rejectedAmount } = getClientSummary(clientName);
   const { setRequests } = useClientRequests();
 
+  const handleConfirmAction = async () => {
+    if (!selectedRequest) return;
 
-  const handleConfirmAction = () => {
-    Toast.show({
-      type: "success",
-      text1: `Simulated ${selectedAction === "accept" ? "approval" : "rejection"}!`,
-    });
-  
+    try {
+      if (selectedAction === "accept") {
+        await approveRequest(selectedRequest.id);
+        Toast.show({ type: "success", text1: "Request approved!" });
+      } else if (selectedAction === "reject") {
+        await rejectRequest(selectedRequest.id, rejectionNote.trim());
+        Toast.show({ type: "success", text1: "Request rejected!" });
+      }
+
+      // ✅ Refetch latest data for this request
+      const refreshedRequests = await fetchClientRequests();
+      const updated = refreshedRequests.find(
+        (r: any) => r.request_id.toString() === selectedRequest.id
+      );
+
+      if (updated) {
+        setLocalStatus(updated.status === "APPROVED" ? "Approved" : "Rejected");
+        setLocalDecisionTime(updated.decision_time);
+        setLocalApprover("You"); // or updated.approver if backend sends it
+        if (updated.rejection_comment) {
+          setLocalRejectionNote(updated.rejection_comment);
+        }
+
+        updateRequestStatus(
+          selectedRequest.id,
+          updated.status === "APPROVED" ? "Approved" : "Rejected",
+          {
+            decisionTime: updated.decision_time,
+            rejectionNote: updated.rejection_comment,
+            approver: "You",
+          }
+        );
+      }
+    } catch (error) {
+      console.error(error);
+      Toast.show({ type: "error", text1: "Action failed. Please try again." });
+    }
+
     setShowConfirm(false);
     setSelectedAction("");
     setRejectionNote("");
   };
-  
-  
-  
-  
-  
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -146,7 +182,14 @@ export default function RequestDetailScreen() {
 
           <Text style={styles.label}>Submitted At</Text>
           <Text style={styles.value}>
-            {new Date(timestamp).toLocaleString("en-GB")}
+            {new Date(timestamp).toLocaleString("en-GB", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false,
+            })}
           </Text>
 
           {localStatus !== "Pending" && (
@@ -154,7 +197,14 @@ export default function RequestDetailScreen() {
               <Text style={styles.label}>Decision Time</Text>
               <Text style={styles.value}>
                 {localDecisionTime
-                  ? new Date(localDecisionTime).toLocaleString("en-GB")
+                  ? new Date(localDecisionTime).toLocaleString("en-GB", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: false,
+                    })
                   : "-"}
               </Text>
               <Text style={styles.label}>Approver</Text>
@@ -197,9 +247,16 @@ export default function RequestDetailScreen() {
           {/* Stats */}
           <View style={styles.summaryGrid}>
             <View style={styles.summaryBox}>
-              <Ionicons name="checkmark-done-outline" size={20} color="#1E1E4B" />
+              <Ionicons
+                name="checkmark-done-outline"
+                size={20}
+                color="#1E1E4B"
+              />
               <Text style={styles.summaryValue}>
-                AED {approvedAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                AED{" "}
+                {approvedAmount.toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                })}
               </Text>
               <Text style={styles.summaryLabel}>Approved</Text>
             </View>
@@ -207,7 +264,10 @@ export default function RequestDetailScreen() {
             <View style={styles.summaryBox}>
               <Ionicons name="close-circle-outline" size={20} color="#1E1E4B" />
               <Text style={styles.summaryValue}>
-                AED {rejectedAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                AED{" "}
+                {rejectedAmount.toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                })}
               </Text>
               <Text style={styles.summaryLabel}>Rejected</Text>
             </View>
@@ -225,8 +285,8 @@ export default function RequestDetailScreen() {
             <View style={styles.confirmModal}>
               <Text style={styles.confirmText}>
                 Are you sure you want to{" "}
-                {selectedAction === "accept" ? "approve" : "reject"} the request for{" "}
-                {clientName}?
+                {selectedAction === "accept" ? "approve" : "reject"} the request
+                for {clientName}?
               </Text>
 
               {selectedAction === "reject" && (

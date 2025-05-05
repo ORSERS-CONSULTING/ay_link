@@ -7,7 +7,8 @@ type ApprovedEntry = {
   requestedAmount: number;
   departmentName: string;
   companyCode: string;
-  timestamp: string;
+  timestamp: string; // request submitted time
+  decisionTime?: string; // ✅ new: actual decision time
   status: "Approved" | "Rejected";
 };
 
@@ -23,9 +24,15 @@ type ChartDataContextType = {
   getClientSummary: (clientName: string, date?: Date | null) => ClientSummary;
 };
 
-const ChartDataContext = createContext<ChartDataContextType | undefined>(undefined);
+const ChartDataContext = createContext<ChartDataContextType | undefined>(
+  undefined
+);
 
-export const ChartDataProvider = ({ children }: { children: React.ReactNode }) => {
+export const ChartDataProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
   const [chartData, setChartData] = useState<ApprovedEntry[]>([]);
 
   useEffect(() => {
@@ -40,6 +47,7 @@ export const ChartDataProvider = ({ children }: { children: React.ReactNode }) =
             departmentName: item.department_name,
             companyCode: item.company_code,
             timestamp: item.requested_at,
+            decisionTime: item.decision_time,
             status: item.status === "APPROVED" ? "Approved" : "Rejected",
           }));
         setChartData(formatted);
@@ -53,19 +61,30 @@ export const ChartDataProvider = ({ children }: { children: React.ReactNode }) =
 
   const getTotalIncreasedAmount = (date?: Date | null) => {
     if (!date) {
-      return chartData.reduce((sum, entry) => sum + entry.requestedAmount, 0);
+      return chartData
+        .filter((entry) => entry.status === "Approved")
+        .reduce((sum, entry) => sum + entry.requestedAmount, 0);
     }
 
     return chartData
-      .filter((entry) => new Date(entry.timestamp).toDateString() === date.toDateString())
+      .filter(
+        (entry) =>
+          entry.status === "Approved" &&
+          entry.decisionTime &&
+          new Date(entry.decisionTime).toDateString() === date.toDateString()
+      )
       .reduce((sum, entry) => sum + entry.requestedAmount, 0);
   };
 
-  const getClientSummary = (clientName: string, date?: Date | null): ClientSummary => {
+  const getClientSummary = (
+    clientName: string,
+    date?: Date | null
+  ): ClientSummary => {
     const filtered = chartData.filter((entry) => {
       const matchesClient = entry.clientName === clientName;
       const matchesDate = date
-        ? new Date(entry.timestamp).toDateString() === date.toDateString()
+        ? entry.decisionTime &&
+          new Date(entry.decisionTime).toDateString() === date.toDateString()
         : true;
       return matchesClient && matchesDate;
     });
@@ -83,7 +102,12 @@ export const ChartDataProvider = ({ children }: { children: React.ReactNode }) =
 
   return (
     <ChartDataContext.Provider
-      value={{ chartData, setChartData, getTotalIncreasedAmount, getClientSummary }}
+      value={{
+        chartData,
+        setChartData,
+        getTotalIncreasedAmount,
+        getClientSummary,
+      }}
     >
       {children}
     </ChartDataContext.Provider>

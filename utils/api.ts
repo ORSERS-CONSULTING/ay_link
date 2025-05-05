@@ -1,3 +1,5 @@
+import { Timestamp } from "react-native-reanimated/lib/typescript/commonTypes";
+
 const BASE_URL =
   "https://yawrhzry16j0fw1-adtgsw3okapc1zpw.adb.me-dubai-1.oraclecloudapps.com/ords/aly_sandbox/credit_notify_api";
 
@@ -14,6 +16,8 @@ export const fetchClientRequests = async () => {
 // ✅ Updated to safely handle 200 OK with or without JSON
 export async function approveRequest(requestId: string) {
   const url = `${BASE_URL}/approve/?request_id=${requestId}`;
+  console.log("📤 Sending APPROVE:", { requestId, url });
+
   const res = await fetch(url, { method: "POST" });
 
   if (!res.ok) {
@@ -26,14 +30,14 @@ export async function approveRequest(requestId: string) {
     return await res.json();
   } catch (err) {
     console.warn("⚠️ Approve succeeded but no JSON returned.");
-    return {}; // fallback
+    return {};
   }
 }
 
 export async function rejectRequest(requestId: string, comment: string) {
-  const url = `${BASE_URL}/reject/?request_id=${requestId}&rejection_comment=${encodeURIComponent(
-    comment
-  )}`;
+  const url = `${BASE_URL}/reject/?request_id=${requestId}&rejection_comment=${encodeURIComponent(comment)}`;
+  console.log("📤 Sending REJECT:", { requestId, url });
+
   const res = await fetch(url, { method: "POST" });
 
   if (!res.ok) {
@@ -46,9 +50,11 @@ export async function rejectRequest(requestId: string, comment: string) {
     return await res.json();
   } catch (err) {
     console.warn("⚠️ Reject succeeded but no JSON returned.");
-    return {}; // fallback
+    return {};
   }
 }
+
+
 
 export async function sendBackRequest(requestId: string, remarks: string) {
   const url = `${BASE_URL}/sendBack?request_id=${requestId}&returned_remarks=${encodeURIComponent(remarks)}`;

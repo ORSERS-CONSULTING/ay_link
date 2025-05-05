@@ -25,9 +25,18 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
 
   const handleFaceIDLogin = async () => {
+    const hasLoggedInBefore = await AsyncStorage.getItem("hasLoggedInBefore");
+    if (hasLoggedInBefore !== "true") {
+      Alert.alert(
+        "Not Allowed",
+        "Please login with email and password first to enable Face ID."
+      );
+      return;
+    }
+  
     const hasHardware = await LocalAuthentication.hasHardwareAsync();
     const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-
+  
     if (!hasHardware || !isEnrolled) {
       Alert.alert(
         "Face ID Not Available",
@@ -35,22 +44,19 @@ export default function LoginScreen() {
       );
       return;
     }
-
+  
     const result = await LocalAuthentication.authenticateAsync({
       promptMessage: "Login with Face ID",
       fallbackLabel: "Use passcode",
     });
-
+  
     if (result.success) {
-      //Alert.alert("Login Success", "Authenticated via Face ID!");
       router.replace("/(tabs)/home");
     } else {
-      Alert.alert(
-        "Authentication Failed",
-        "Face ID verification unsuccessful."
-      );
+      Alert.alert("Authentication Failed", "Face ID verification unsuccessful.");
     }
   };
+  
 
   const handleLogin = async () => {
     if (blocked) {
@@ -79,9 +85,9 @@ export default function LoginScreen() {
     );
 
     if (isValid) {
-      // ✅ First successful login: save face ID flag
       await AsyncStorage.setItem("faceIdEnabled", "true");
-      await AsyncStorage.setItem("email", email); // optional
+      await AsyncStorage.setItem("hasLoggedInBefore", "true"); // ✅ new line
+      await AsyncStorage.setItem("email", email);
       router.replace("/(tabs)/home");
     } else {
       const remaining = attemptsLeft - 1;
@@ -101,29 +107,45 @@ export default function LoginScreen() {
     }
   };
 
+  // useEffect(() => {
+  //   const clearFlags = async () => {
+  //     await AsyncStorage.removeItem("faceIdEnabled");
+  //     await AsyncStorage.removeItem("hasLoggedInBefore");
+  //     console.log("✅ Cleared faceIdEnabled and hasLoggedInBefore");
+  //   };
+  
+  //   clearFlags();
+  // }, []);
+  
   useEffect(() => {
     const checkFaceId = async () => {
+      const hasLoggedInBefore = await AsyncStorage.getItem("hasLoggedInBefore");
       const faceIdEnabled = await AsyncStorage.getItem("faceIdEnabled");
-      if (faceIdEnabled === "true") {
+  
+      if (
+        hasLoggedInBefore === "true" &&
+        faceIdEnabled === "true"
+      ) {
         const hasHardware = await LocalAuthentication.hasHardwareAsync();
-        const supported =
-          await LocalAuthentication.supportedAuthenticationTypesAsync();
+        const supported = await LocalAuthentication.supportedAuthenticationTypesAsync();
         const enrolled = await LocalAuthentication.isEnrolledAsync();
-
+  
         if (hasHardware && supported.length && enrolled) {
           const result = await LocalAuthentication.authenticateAsync({
             promptMessage: "Authenticate with Face ID",
           });
-
+  
           if (result.success) {
             router.replace("/(tabs)/home");
           }
         }
       }
     };
-
+  
     checkFaceId();
   }, []);
+  
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView

@@ -29,9 +29,15 @@ type ClientRequestContextType = {
   getVisibleRequests: () => ClientRequest[];
 };
 
-const ClientRequestContext = createContext<ClientRequestContextType | undefined>(undefined);
+const ClientRequestContext = createContext<
+  ClientRequestContextType | undefined
+>(undefined);
 
-export const ClientRequestProvider = ({ children }: { children: React.ReactNode }) => {
+export const ClientRequestProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
   const [requests, setRequests] = useState<ClientRequest[]>([]);
 
   const updateRequestStatus = (
@@ -40,14 +46,14 @@ export const ClientRequestProvider = ({ children }: { children: React.ReactNode 
     update: Partial<ClientRequest> = {}
   ) => {
     setRequests((prev) =>
-      prev.map((req) =>
-        req.id === id ? { ...req, status, ...update } : req
-      )
+      prev.map((req) => (req.id === id ? { ...req, status, ...update } : req))
     );
   };
 
   const getVisibleRequests = () => {
-    return requests.filter((req) => req.status === "Pending" || req.status === "On hold");
+    return requests.filter(
+      (req) => req.status === "Pending" || req.status === "On hold"
+    );
   };
 
   return (
@@ -67,7 +73,9 @@ export const ClientRequestProvider = ({ children }: { children: React.ReactNode 
 export const useClientRequests = () => {
   const context = useContext(ClientRequestContext);
   if (!context) {
-    throw new Error("useClientRequests must be used within a ClientRequestProvider");
+    throw new Error(
+      "useClientRequests must be used within a ClientRequestProvider"
+    );
   }
   return context;
 };

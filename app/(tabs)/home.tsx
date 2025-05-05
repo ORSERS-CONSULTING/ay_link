@@ -34,6 +34,11 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSelectedRequest } from "@/context/SelectedRequestContext";
+import {
+  useClientRequests,
+  ClientRequest,
+  RequestStatus,
+} from "@/context/ClientRequestContext";
 
 type Client = {
   id: string;
@@ -54,9 +59,10 @@ type Client = {
 export default function HomeScreen() {
   const router = useRouter();
   const [search, setSearch] = useState("");
-  const [clients, setClients] = useState<Client[]>([]);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [selectedAction, setSelectedAction] = useState<"accept" | "reject" | "">("");
+  const [selectedAction, setSelectedAction] = useState<
+    "accept" | "reject" | ""
+  >("");
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [rejectionNote, setRejectionNote] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -72,10 +78,14 @@ export default function HomeScreen() {
   const [showSearch, setShowSearch] = useState(false);
   const searchInputRef = useRef<TextInput>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<"All" | "Pending" | "On hold">("All");
+  const [statusFilter, setStatusFilter] = useState<
+    "All" | "Pending" | "On hold"
+  >("All");
   const [requesterFilter, setRequesterFilter] = useState<string>("All");
   const [showFilters, setShowFilters] = useState(false);
   const [scrollY, setScrollY] = useState(0);
+  const { requests, setRequests, getVisibleRequests, updateRequestStatus } =
+    useClientRequests();
 
   useEffect(() => {
     if (showSearch) {
@@ -87,14 +97,17 @@ export default function HomeScreen() {
     setRefreshing(true);
     try {
       const response = await fetchClientRequests();
-      const formattedClients: Client[] = response
-        .filter((item: any) => item.status === "PENDING" || item.status === "ON HOLD")
+
+      const formattedClients: ClientRequest[] = response
+        .filter(
+          (item: any) => item.status === "PENDING" || item.status === "ON HOLD"
+        )
         .map((item: any) => ({
           id: item.request_id.toString(),
           clientName: item.company_name.replace(/^\s+/, ""),
           currentBalance: 0,
           requestedAmount: item.credit_amount,
-          status: capitalize(item.status),
+          status: capitalize(item.status) as RequestStatus,
           timestamp: item.requested_at,
           rejectionNote: item.rejection_comment || "",
           reason: item.reason,
@@ -105,7 +118,7 @@ export default function HomeScreen() {
           name: item.name || "",
         }));
 
-      const formattedChartData = response
+        const formattedChartData = response
         .filter((item: any) => item.status === "APPROVED")
         .map((item: any) => ({
           clientName: item.company_name,
@@ -113,15 +126,19 @@ export default function HomeScreen() {
           departmentName: item.department_name,
           companyCode: item.company_code,
           timestamp: item.requested_at,
+          decisionTime: item.decision_time, // ✅ Add this
         }));
+      
 
-      setClients(
+      // 🔁 Update global shared requests
+      setRequests(
         formattedClients.sort(
           (a, b) =>
             new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         )
       );
 
+      // ✅ Update chart data (local)
       setChartData(formattedChartData);
     } catch (e) {
       Toast.show({ type: "error", text1: "Failed to load requests." });
@@ -135,26 +152,17 @@ export default function HomeScreen() {
   }, []);
 
   const uniqueRequesters = useMemo(() => {
-    const names = clients.map((c) => c.name).filter(Boolean);
+    const names = requests.map((c) => c.name ?? "").filter(Boolean);
     return ["All", ...Array.from(new Set(names))];
-  }, [clients]);
-
-
-
-
-
-
-
-
-
-
-
+  }, [requests]);
 
   const [totalIncreased, setTotalIncreased] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
       const value = getTotalIncreasedAmount(selectedDate);
+      //console.log("📆 selectedDate:", selectedDate?.toISOString());
+
       setTotalIncreased(value);
     }, [chartData, selectedDate])
   );
@@ -171,33 +179,103 @@ export default function HomeScreen() {
     }
   }, [showConfirm]);
 
-  const handleConfirmAction = () => {
-    Toast.show({
-      type: "success",
-      text1: `Simulated ${selectedAction === "accept" ? "approval" : "rejection"}!`,
-    });
+  // const handleConfirmAction = async () => {
+  //   if (!selectedClient) return;
+
+  //   try {
+  //     if (selectedAction === "accept") {
+  //       await approveRequest(selectedClient.id);
+  //       Toast.show({ type: "success", text1: "Request approved!" });
+  //       updateRequestStatus(selectedClient.id, "Approved");
+  //     } else if (selectedAction === "reject") {
+  //       await rejectRequest(selectedClient.id, rejectionNote.trim());
+  //       Toast.show({ type: "success", text1: "Request rejected!" });
+  //       updateRequestStatus(selectedClient.id, "Rejected", {
+  //         rejectionNote: rejectionNote.trim(),
+  //       });
+  //     }
+  //   } catch (error) {
+  //     Toast.show({ type: "error", text1: "Action failed. Try again." });
+  //   }
+
+  //   setShowConfirm(false);
+  //   setSelectedClient(null);
+  //   setSelectedAction("");
+  //   setRejectionNote("");
+  // };
+
+  const handleConfirmAction = async () => {
+  if (!selectedClient) return;
+
+  console.log(
+    "➡️ Starting confirm action:",
+    selectedAction,
+    "for ID:",
+    selectedClient.id
+  );
+
+  try {
+    const now = new Date().toISOString().split(".")[0]; // this can still be used locally
+
+    if (selectedAction === "accept") {
+      Toast.show({ type: "info", text1: "Sending approval..." });
+
+      const result = await approveRequest(selectedClient.id); // ✅ removed `now`
+      console.log("✅ Approve response:", result);
+
+      Toast.show({ type: "success", text1: "Request approved!" });
+      updateRequestStatus(selectedClient.id, "Approved", {
+        decisionTime: now, // ✅ used only for frontend display
+        approver: "You",
+      });
+    }
+
+    if (selectedAction === "reject") {
+      Toast.show({ type: "info", text1: "Sending rejection..." });
+
+      const result = await rejectRequest(
+        selectedClient.id,
+        rejectionNote.trim() // ✅ removed `now`
+      );
+      console.log("✅ Reject response:", result);
+
+      Toast.show({ type: "success", text1: "Request rejected!" });
+      updateRequestStatus(selectedClient.id, "Rejected", {
+        decisionTime: now, // ✅ for UI only
+        approver: "You",
+        rejectionNote: rejectionNote.trim(),
+      });
+    }
+  } catch (error) {
+    console.error("❌ Action failed:", error);
+    Toast.show({ type: "error", text1: "Action failed. Try again." });
+  }
+
+  setShowConfirm(false);
+  setSelectedClient(null);
+  setSelectedAction("");
+  setRejectionNote("");
+};
+
   
-    setShowConfirm(false);
-    setSelectedClient(null);
-    setSelectedAction("");
-    setRejectionNote("");
-  };
-  
-  
+
   const handleSendBack = async () => {
     if (!selectedClient || !additionalInfo.trim()) return;
-  
+
     try {
       await sendBackRequest(selectedClient.id, additionalInfo.trim());
-  
-      Toast.show({ type: "success", text1: "Request sent for additional info!" });
-  
+
+      Toast.show({
+        type: "success",
+        text1: "Request sent for additional info!",
+      });
+
       // Optionally refresh data from backend
       await loadClientsAndChartData();
     } catch (error) {
       Toast.show({ type: "error", text1: "Failed to send request back." });
     }
-  
+
     setShowInfoModal(false);
     setAdditionalInfo("");
     setSelectedClient(null);
@@ -206,7 +284,7 @@ export default function HomeScreen() {
   const isSameDate = (d1: string, d2: Date) =>
     new Date(d1).toDateString() === new Date(d2).toDateString();
 
-  const filteredData = clients.filter((item) => {
+  const filteredData = getVisibleRequests().filter((item) => {
     const matchesSearch = item.clientName
       .toLowerCase()
       .includes(search.toLowerCase());
@@ -239,7 +317,7 @@ export default function HomeScreen() {
     const time = new Date(timestamp);
     const diffMs = now.getTime() - time.getTime();
     const diffHrs = diffMs / (1000 * 60 * 60);
-  
+
     if (diffHrs < 24) {
       return time.toLocaleTimeString("en-GB", {
         hour: "2-digit",
@@ -249,8 +327,6 @@ export default function HomeScreen() {
       return time.toLocaleDateString("en-GB"); // e.g., 02/12/2025
     }
   };
-  
-  
 
   const capitalize = (text: string) =>
     text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
@@ -283,20 +359,18 @@ export default function HomeScreen() {
           router.push("/request-detail-screen");
         }}
       >
-    <View style={styles.clientRow}>
-  <View style={styles.clientNameWrapper}>
-    <Text
-      style={styles.clientName}
-      numberOfLines={1}
-      ellipsizeMode="tail"
-    >
-      {item.clientName}
-    </Text>
-  </View>
-  <Text style={styles.timeText}>{getTimeAgo(item.timestamp)}</Text>
-</View>
-
-
+        <View style={styles.clientRow}>
+          <View style={styles.clientNameWrapper}>
+            <Text
+              style={styles.clientName}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {item.clientName}
+            </Text>
+          </View>
+          <Text style={styles.timeText}>{getTimeAgo(item.timestamp)}</Text>
+        </View>
 
         <Text style={styles.label}>Requested Amount:</Text>
         <Text style={styles.value}>
@@ -373,10 +447,6 @@ export default function HomeScreen() {
     </View>
   );
 
-
-
-
-  
   return (
     <SafeAreaView style={styles.safeArea}>
       <View
@@ -389,108 +459,109 @@ export default function HomeScreen() {
       >
         <StatusBar hidden />
         <Modal
-  transparent
-  animationType="fade"
-  visible={showConfirm}
-  onRequestClose={() => setShowConfirm(false)}
->
-  <View style={styles.modalOverlay}>
-    <View style={styles.confirmModal}>
-      <Text style={styles.confirmText}>
-        Are you sure you want to{" "}
-        {selectedAction === "accept" ? "approve" : "reject"} the request for{" "}
-        {selectedClient?.clientName}?
-      </Text>
-
-      {selectedAction === "reject" && (
-        <TextInput
-          placeholder="Optional: reason for rejection"
-          placeholderTextColor="#999"
-          style={styles.rejectionInput}
-          value={rejectionNote}
-          onChangeText={setRejectionNote}
-          multiline
-        />
-      )}
-
-      <View style={styles.confirmActions}>
-        <TouchableOpacity
-          style={[
-            styles.confirmBtn,
-            {
-              backgroundColor:
-                selectedAction === "accept" ? "#2E7D32" : "#C62828",
-            },
-          ]}
-          onPress={handleConfirmAction}
+          transparent
+          animationType="fade"
+          visible={showConfirm}
+          onRequestClose={() => setShowConfirm(false)}
         >
-          <Text style={{ color: "#fff", fontWeight: "bold" }}>
-            {selectedAction === "accept" ? "Approve" : "Reject"}
-          </Text>
-        </TouchableOpacity>
+          <View style={styles.modalOverlay}>
+            <View style={styles.confirmModal}>
+              <Text style={styles.confirmText}>
+                Are you sure you want to{" "}
+                {selectedAction === "accept" ? "approve" : "reject"} the request
+                for {selectedClient?.clientName}?
+              </Text>
 
-        <TouchableOpacity
-          style={[styles.confirmBtn, { backgroundColor: "#999999" }]}
-          onPress={() => {
-            setShowConfirm(false);
-            setSelectedClient(null);
-            setSelectedAction("");
-            setRejectionNote("");
-          }}
+              {selectedAction === "reject" && (
+                <TextInput
+                  placeholder="Optional: reason for rejection"
+                  placeholderTextColor="#999"
+                  style={styles.rejectionInput}
+                  value={rejectionNote}
+                  onChangeText={setRejectionNote}
+                  multiline
+                />
+              )}
+
+              <View style={styles.confirmActions}>
+                <TouchableOpacity
+                  style={[
+                    styles.confirmBtn,
+                    {
+                      backgroundColor:
+                        selectedAction === "accept" ? "#2E7D32" : "#C62828",
+                    },
+                  ]}
+                  onPress={handleConfirmAction}
+                >
+                  <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                    {selectedAction === "accept" ? "Approve" : "Reject"}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.confirmBtn, { backgroundColor: "#999999" }]}
+                  onPress={() => {
+                    setShowConfirm(false);
+                    setSelectedClient(null);
+                    setSelectedAction("");
+                    setRejectionNote("");
+                  }}
+                >
+                  <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+        <Modal
+          transparent
+          visible={showInfoModal}
+          animationType="fade"
+          onRequestClose={() => setShowInfoModal(false)}
         >
-          <Text style={{ color: "#fff", fontWeight: "bold" }}>Cancel</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  </View>
-</Modal>
-<Modal
-  transparent
-  visible={showInfoModal}
-  animationType="fade"
-  onRequestClose={() => setShowInfoModal(false)}
->
-  <View style={styles.modalOverlay}>
-    <View style={styles.confirmModal}>
-      <Text style={styles.confirmText}>
-        Enter additional info required for {selectedClient?.clientName}:
-      </Text>
-      <TextInput
-        placeholder="E.g. Upload recent documents"
-        placeholderTextColor="#999"
-        value={additionalInfo}
-        onChangeText={setAdditionalInfo}
-        multiline
-        style={styles.rejectionInput}
-      />
+          <View style={styles.modalOverlay}>
+            <View style={styles.confirmModal}>
+              <Text style={styles.confirmText}>
+                Enter additional info required for {selectedClient?.clientName}:
+              </Text>
+              <TextInput
+                placeholder="E.g. Upload recent documents"
+                placeholderTextColor="#999"
+                value={additionalInfo}
+                onChangeText={setAdditionalInfo}
+                multiline
+                style={styles.rejectionInput}
+              />
 
-      <View style={styles.confirmActions}>
-        <TouchableOpacity
-          onPress={handleSendBack}
-          style={[styles.confirmBtn, { backgroundColor: "#1E1E4B" }]}
-        >
-          <Text style={{ color: "#fff", fontWeight: "bold" }}>Send</Text>
-        </TouchableOpacity>
+              <View style={styles.confirmActions}>
+                <TouchableOpacity
+                  onPress={handleSendBack}
+                  style={[styles.confirmBtn, { backgroundColor: "#1E1E4B" }]}
+                >
+                  <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                    Send
+                  </Text>
+                </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => {
-            setShowInfoModal(false);
-            setAdditionalInfo("");
-            setSelectedClient(null);
-          }}
-          style={[styles.confirmBtn, { backgroundColor: "#999999" }]}
-        >
-          <Text style={{ color: "#fff", fontWeight: "bold" }}>Cancel</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  </View>
-</Modal>
-
-
-
-
-
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowInfoModal(false);
+                    setAdditionalInfo("");
+                    setSelectedClient(null);
+                  }}
+                  style={[styles.confirmBtn, { backgroundColor: "#999999" }]}
+                >
+                  <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
         {/* Summary Cards */}
         <View style={[styles.summaryContainer, { justifyContent: "center" }]}>
@@ -705,9 +776,7 @@ export default function HomeScreen() {
               {["All", "Pending", "On hold"].map((status) => (
                 <TouchableOpacity
                   key={status}
-                  onPress={() =>
-                    setStatusFilter(status as typeof statusFilter)
-                  }
+                  onPress={() => setStatusFilter(status as typeof statusFilter)}
                   style={[
                     styles.filterButton,
                     statusFilter === status && styles.activeFilter,
@@ -767,8 +836,11 @@ export default function HomeScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={loadClientsAndChartData}
-              progressBackgroundColor="#1E1E4B"
-          
+              progressBackgroundColor="#ffffff" // background of the spinner circle
+    colors={["#1E1E4B"]} // Android spinner color(s)
+    tintColor="white" // iOS spinner color
+    title="Pull to refresh"
+    titleColor="#1E1E4B"
             />
           }
         >
@@ -782,10 +854,6 @@ export default function HomeScreen() {
     </SafeAreaView>
   );
 }
-
-
-
-
 
 const styles = StyleSheet.create({
   container: {
@@ -884,7 +952,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   listContainer: {
-    paddingBottom:20,
+    paddingBottom: 20,
   },
   card: {
     backgroundColor: "#fff",
@@ -897,7 +965,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 5,
   },
-  
+
   label: {
     fontSize: 14,
     color: "#888",
@@ -1165,23 +1233,22 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 2,
   },
-  
+
   clientNameWrapper: {
     flex: 1,
-  paddingRight:50 // ensures spacing before time
+    paddingRight: 50, // ensures spacing before time
   },
-  
+
   clientName: {
     fontSize: 18,
     fontWeight: "bold",
     color: "#1E1E4B",
   },
-  
+
   timeText: {
     fontSize: 11,
     color: "#999",
     minWidth: 52, // ensure fixed space for consistent right alignment
     textAlign: "right",
-  },  
-  
+  },
 });
