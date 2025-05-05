@@ -8,7 +8,7 @@ type ApprovedEntry = {
   departmentName: string;
   companyCode: string;
   timestamp: string; // request submitted time
-  decisionTime?: string; // ✅ new: actual decision time
+  decisionTime?: string; // actual decision time
   status: "Approved" | "Rejected";
 };
 
@@ -24,15 +24,9 @@ type ChartDataContextType = {
   getClientSummary: (clientName: string, date?: Date | null) => ClientSummary;
 };
 
-const ChartDataContext = createContext<ChartDataContextType | undefined>(
-  undefined
-);
+const ChartDataContext = createContext<ChartDataContextType | undefined>(undefined);
 
-export const ChartDataProvider = ({
-  children,
-}: {
-  children: React.ReactNode;
-}) => {
+export const ChartDataProvider = ({ children }: { children: React.ReactNode }) => {
   const [chartData, setChartData] = useState<ApprovedEntry[]>([]);
 
   useEffect(() => {
@@ -42,15 +36,17 @@ export const ChartDataProvider = ({
         const formatted: ApprovedEntry[] = response
           .filter((item: any) => ["APPROVED", "REJECTED"].includes(item.status))
           .map((item: any) => ({
-            clientName: item.company_name,
+            clientName: item.company_name?.trim() ?? "Unknown",
             requestedAmount: item.credit_amount,
             departmentName: item.department_name,
             companyCode: item.company_code,
             timestamp: item.requested_at,
-            decisionTime: item.decision_time,
+            decisionTime: item.decision_time || null,
             status: item.status === "APPROVED" ? "Approved" : "Rejected",
           }));
         setChartData(formatted);
+
+        console.log("🧾 Loaded approved entries:", formatted.filter(e => e.status === "Approved"));
       } catch (e) {
         Toast.show({ type: "error", text1: "Failed to load chart data." });
       }
@@ -59,7 +55,9 @@ export const ChartDataProvider = ({
     loadChartData();
   }, []);
 
-  const getTotalIncreasedAmount = (date?: Date | null) => {
+  const getTotalIncreasedAmount = (date?: Date | null): number => {
+    console.log("📆 getTotalIncreasedAmount - selectedDate:", date?.toISOString());
+
     if (!date) {
       return chartData
         .filter((entry) => entry.status === "Approved")
@@ -70,22 +68,21 @@ export const ChartDataProvider = ({
       .filter(
         (entry) =>
           entry.status === "Approved" &&
-          entry.decisionTime &&
-          new Date(entry.decisionTime).toDateString() === date.toDateString()
+          (entry.decisionTime || entry.timestamp) &&
+          new Date(entry.decisionTime || entry.timestamp).toDateString() === date.toDateString()
       )
       .reduce((sum, entry) => sum + entry.requestedAmount, 0);
   };
 
-  const getClientSummary = (
-    clientName: string,
-    date?: Date | null
-  ): ClientSummary => {
+  const getClientSummary = (clientName: string, date?: Date | null): ClientSummary => {
     const filtered = chartData.filter((entry) => {
       const matchesClient = entry.clientName === clientName;
+      const entryDate = entry.decisionTime || entry.timestamp;
       const matchesDate = date
-        ? entry.decisionTime &&
-          new Date(entry.decisionTime).toDateString() === date.toDateString()
+        ? entryDate &&
+          new Date(entryDate).toDateString() === date.toDateString()
         : true;
+
       return matchesClient && matchesDate;
     });
 
@@ -102,12 +99,7 @@ export const ChartDataProvider = ({
 
   return (
     <ChartDataContext.Provider
-      value={{
-        chartData,
-        setChartData,
-        getTotalIncreasedAmount,
-        getClientSummary,
-      }}
+      value={{ chartData, setChartData, getTotalIncreasedAmount, getClientSummary }}
     >
       {children}
     </ChartDataContext.Provider>

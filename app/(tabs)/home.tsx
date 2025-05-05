@@ -160,8 +160,9 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      
       const value = getTotalIncreasedAmount(selectedDate);
-      //console.log("📆 selectedDate:", selectedDate?.toISOString());
+      
 
       setTotalIncreased(value);
     }, [chartData, selectedDate])
@@ -302,7 +303,7 @@ export default function HomeScreen() {
     return matchesSearch && matchesDate && matchesStatus && matchesRequester;
   });
 
-  const totalIncreasedAmount = getTotalIncreasedAmount(selectedDate);
+  //const totalIncreasedAmount = getTotalIncreasedAmount(selectedDate);
 
   const [expandedReasonIds, setExpandedReasonIds] = useState<string[]>([]);
 
@@ -565,17 +566,18 @@ export default function HomeScreen() {
 
         {/* Summary Cards */}
         <View style={[styles.summaryContainer, { justifyContent: "center" }]}>
-          <View style={styles.summaryCardFull}>
-            <Text style={styles.summaryTitle}>Total Increased</Text>
-            <Text style={[styles.summaryValue, { fontSize: 22 }]}>
-              AED{" "}
-              {totalIncreasedAmount.toLocaleString("en-US", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </Text>
-          </View>
-        </View>
+  <View style={styles.summaryCardFull}>
+    <Text style={styles.summaryTitle}>Total Increased</Text>
+    <Text style={[styles.summaryValue, { fontSize: 22 }]}>
+      AED{" "}
+      {totalIncreased.toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}
+    </Text>
+  </View>
+</View>
+
 
         {/* Filter & Search Row */}
         <View
