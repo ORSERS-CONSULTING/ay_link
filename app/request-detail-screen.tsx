@@ -14,10 +14,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import React, { useEffect, useState } from "react";
 import Toast from "react-native-toast-message";
 import { useSelectedRequest } from "@/context/SelectedRequestContext";
-import { approveRequest, fetchClientRequests, rejectRequest } from "@/utils/api";
+import {
+  approveRequest,
+  fetchClientRequests,
+  fetchTransactionStats,
+  rejectRequest,
+} from "@/utils/api";
 import { useChartData } from "@/context/ChartDataContext";
 import {
-  ClientRequest,
   useClientRequests,
 } from "@/context/ClientRequestContext";
 
@@ -25,12 +29,32 @@ export default function RequestDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { selectedRequest, setSelectedRequest } = useSelectedRequest();
+  const { getClientSummary, chartData } = useChartData();
+  const { updateRequestStatus, setRequests } = useClientRequests();
+
   const [showConfirm, setShowConfirm] = useState(false);
   const [selectedAction, setSelectedAction] = useState<
     "accept" | "reject" | ""
   >("");
   const [rejectionNote, setRejectionNote] = useState("");
-  const { updateRequestStatus } = useClientRequests();
+
+  const [transactionStats, setTransactionStats] = useState<{
+    invoice_count: number;
+    transaction_count: number;
+  } | null>(null);
+
+  useEffect(() => {
+    const loadStats = async () => {
+      if (!selectedRequest?.companyCode) return;
+      try {
+        const stats = await fetchTransactionStats(selectedRequest.companyCode);
+        setTransactionStats(stats);
+      } catch (e) {
+        console.error("❌ Failed to load transaction stats:", e);
+      }
+    };
+    loadStats();
+  }, [selectedRequest?.companyCode]);
 
   useEffect(() => {
     return () => setSelectedRequest(null);
@@ -66,13 +90,13 @@ export default function RequestDetailScreen() {
   const [localRejectionNote, setLocalRejectionNote] = useState(
     existingRejectionNote
   );
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const { getClientSummary } = useChartData();
-  const { approvedAmount, rejectedAmount } = getClientSummary(clientName);
-  const { setRequests } = useClientRequests();
+  // const { approvedAmount, rejectedAmount } = getClientSummary(clientName);
 
   const handleConfirmAction = async () => {
-    if (!selectedRequest) return;
+    if (!selectedRequest || isProcessing) return;
+    setIsProcessing(true);
 
     try {
       if (selectedAction === "accept") {
@@ -83,38 +107,54 @@ export default function RequestDetailScreen() {
         Toast.show({ type: "success", text1: "Request rejected!" });
       }
 
-      // ✅ Refetch latest data for this request
       const refreshedRequests = await fetchClientRequests();
       const updated = refreshedRequests.find(
         (r: any) => r.request_id.toString() === selectedRequest.id
       );
 
       if (updated) {
-        setLocalStatus(updated.status === "APPROVED" ? "Approved" : "Rejected");
-        setLocalDecisionTime(updated.decision_time);
-        setLocalApprover("You"); // or updated.approver if backend sends it
+        const updatedStatus =
+          updated.status === "APPROVED" ? "Approved" : "Rejected";
+
+        setLocalStatus(updatedStatus);
+        setLocalDecisionTime(updated.decision_time || new Date().toISOString());
+        setLocalApprover("You");
+
         if (updated.rejection_comment) {
           setLocalRejectionNote(updated.rejection_comment);
         }
 
-        updateRequestStatus(
-          selectedRequest.id,
-          updated.status === "APPROVED" ? "Approved" : "Rejected",
-          {
-            decisionTime: updated.decision_time,
-            rejectionNote: updated.rejection_comment,
-            approver: "You",
-          }
-        );
+        updateRequestStatus(selectedRequest.id, updatedStatus, {
+          decisionTime: updated.decision_time,
+          rejectionNote: updated.rejection_comment,
+          approver: "You",
+        });
       }
     } catch (error) {
       console.error(error);
       Toast.show({ type: "error", text1: "Action failed. Please try again." });
     }
 
+    setIsProcessing(false);
     setShowConfirm(false);
     setSelectedAction("");
     setRejectionNote("");
+  };
+
+  const normalize = (text: string) =>
+    text.trim().replace(/\s+/g, " ").toLowerCase();
+
+  const getClientAmountByStatus = (status: "Approved" | "Rejected") => {
+    const filtered = chartData.filter(
+      (entry) =>
+        entry.status.toLowerCase() === status.toLowerCase() &&
+        entry.companyCode === selectedRequest.companyCode &&
+        normalize(entry.clientName) === normalize(selectedRequest.clientName)
+    );
+
+    console.log(`🔍 ${status} for ${selectedRequest.companyCode}:`, filtered);
+
+    return filtered.reduce((sum, entry) => sum + entry.requestedAmount, 0);
   };
 
   return (
@@ -177,8 +217,8 @@ export default function RequestDetailScreen() {
             </>
           )}
 
-          <Text style={styles.label}>Requester</Text>
-          <Text style={styles.value}>John Doe</Text>
+          {/* <Text style={styles.label}>Requester</Text>
+          <Text style={styles.value}>John Doe</Text> */}
 
           <Text style={styles.label}>Submitted At</Text>
           <Text style={styles.value}>
@@ -246,30 +286,67 @@ export default function RequestDetailScreen() {
 
           {/* Stats */}
           <View style={styles.summaryGrid}>
+          <View style={styles.summaryBox}>
+    <Ionicons
+      name="checkmark-done-outline"
+      size={20}
+      color="#1E1E4B"
+    />
+    <Text
+      style={styles.summaryValue}
+      numberOfLines={1}
+      adjustsFontSizeToFit
+    >
+      AED{" "}
+      {getClientAmountByStatus("Approved").toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+      })}
+    </Text>
+    <Text style={styles.summaryLabel}>Total Approved</Text> {/* ✅ label added */}
+  </View>
+
+  {/* Rejected Box */}
+  <View style={styles.summaryBox}>
+    <Ionicons
+      name="close-circle-outline"
+      size={20}
+      color="#1E1E4B"
+    />
+    <Text
+      style={styles.summaryValue}
+      numberOfLines={1}
+      adjustsFontSizeToFit
+    >
+      AED{" "}
+      {getClientAmountByStatus("Rejected").toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+      })}
+    </Text>
+    <Text style={styles.summaryLabel}>Total Rejected</Text> {/* ✅ label added */}
+  </View>
+
             <View style={styles.summaryBox}>
               <Ionicons
-                name="checkmark-done-outline"
+                name="document-text-outline"
                 size={20}
                 color="#1E1E4B"
               />
               <Text style={styles.summaryValue}>
-                AED{" "}
-                {approvedAmount.toLocaleString("en-US", {
-                  minimumFractionDigits: 2,
-                })}
+                {transactionStats?.invoice_count ?? "--"}
               </Text>
-              <Text style={styles.summaryLabel}>Approved</Text>
+              <Text style={styles.summaryLabel}>Total Invoices</Text>
             </View>
 
             <View style={styles.summaryBox}>
-              <Ionicons name="close-circle-outline" size={20} color="#1E1E4B" />
+              <Ionicons
+                name="swap-vertical-outline"
+                size={20}
+                color="#1E1E4B"
+              />
               <Text style={styles.summaryValue}>
-                AED{" "}
-                {rejectedAmount.toLocaleString("en-US", {
-                  minimumFractionDigits: 2,
-                })}
+                {transactionStats?.transaction_count ?? "--"}
               </Text>
-              <Text style={styles.summaryLabel}>Rejected</Text>
+              <Text style={styles.summaryLabel}>Total Transactions</Text>
             </View>
           </View>
         </View>
@@ -302,17 +379,43 @@ export default function RequestDetailScreen() {
 
               <View style={styles.confirmActions}>
                 <TouchableOpacity
+                  disabled={isProcessing}
                   style={[
                     styles.confirmBtn,
                     {
                       backgroundColor:
                         selectedAction === "accept" ? "#2E7D32" : "#C62828",
+                      opacity: isProcessing ? 0.6 : 1,
                     },
                   ]}
                   onPress={handleConfirmAction}
                 >
                   <Text style={{ color: "#fff", fontWeight: "bold" }}>
-                    {selectedAction === "accept" ? "Approve" : "Reject"}
+                    {isProcessing
+                      ? "Processing..."
+                      : selectedAction === "accept"
+                      ? "Approve"
+                      : "Reject"}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  disabled={isProcessing}
+                  style={[
+                    styles.confirmBtn,
+                    {
+                      backgroundColor: "#999999",
+                      opacity: isProcessing ? 0.6 : 1,
+                    },
+                  ]}
+                  onPress={() => {
+                    setShowConfirm(false);
+                    setSelectedAction("");
+                    setRejectionNote("");
+                  }}
+                >
+                  <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                    Cancel
                   </Text>
                 </TouchableOpacity>
 
@@ -510,7 +613,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     color: "#1E1E4B",
+    textAlign: "center",
+    includeFontPadding: false,
   },
+
   summaryLabel: {
     fontSize: 13,
     color: "#666",

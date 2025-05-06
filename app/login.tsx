@@ -15,6 +15,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "react-native";
 import * as LocalAuthentication from "expo-local-authentication";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { loginUser } from "@/utils/api";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -33,10 +34,10 @@ export default function LoginScreen() {
       );
       return;
     }
-  
+
     const hasHardware = await LocalAuthentication.hasHardwareAsync();
     const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-  
+
     if (!hasHardware || !isEnrolled) {
       Alert.alert(
         "Face ID Not Available",
@@ -44,107 +45,97 @@ export default function LoginScreen() {
       );
       return;
     }
-  
+
     const result = await LocalAuthentication.authenticateAsync({
       promptMessage: "Login with Face ID",
       fallbackLabel: "Use passcode",
     });
-  
+
     if (result.success) {
       router.replace("/(tabs)/home");
     } else {
-      Alert.alert("Authentication Failed", "Face ID verification unsuccessful.");
+      Alert.alert(
+        "Authentication Failed",
+        "Face ID verification unsuccessful."
+      );
     }
   };
-  
 
   const handleLogin = async () => {
     if (blocked) {
       Alert.alert("Blocked", "Too many failed attempts. Try again later.");
       return;
     }
-
+  
     if (!email || !password) {
       Alert.alert("Required", "Both email and password are required.");
       return;
     }
-
-    const emailRegex = /^\S+@\S+\.\S+$/;
-    if (!emailRegex.test(email)) {
-      Alert.alert("Invalid Email", "Please enter a valid email address.");
-      return;
-    }
-
-    const validCredentials = [
-      { email: "oduolateniola@gmail.com", password: "123" },
-      { email: "test@gmail.com", password: "123" },
-    ];
-
-    const isValid = validCredentials.some(
-      (cred) => cred.email === email && cred.password === password
-    );
-
-    if (isValid) {
-      await AsyncStorage.setItem("faceIdEnabled", "true");
-      await AsyncStorage.setItem("hasLoggedInBefore", "true"); // ✅ new line
-      await AsyncStorage.setItem("email", email);
-      router.replace("/(tabs)/home");
-    } else {
-      const remaining = attemptsLeft - 1;
-      setAttemptsLeft(remaining);
-      if (remaining <= 0) {
-        setBlocked(true);
-        Alert.alert(
-          "Login Blocked",
-          "You have exceeded the maximum number of login attempts."
-        );
+  
+    try {
+      const response = await loginUser(email, password);
+  
+      if (response.success) {
+        await AsyncStorage.setItem("faceIdEnabled", "true");
+        await AsyncStorage.setItem("hasLoggedInBefore", "true");
+        await AsyncStorage.setItem("email", email);
+  
+        router.replace("/(tabs)/home");
       } else {
-        Alert.alert(
-          "Login Failed",
-          `Incorrect credentials. ${remaining} attempt(s) left.`
-        );
+        const remaining = attemptsLeft - 1;
+        setAttemptsLeft(remaining);
+  
+        if (remaining <= 0) {
+          setBlocked(true);
+          Alert.alert(
+            "Login Blocked",
+            "You have exceeded the maximum number of login attempts."
+          );
+        } else {
+          Alert.alert("Login Failed", response.message);
+        }
       }
+    } catch (error) {
+      console.error("❌ Unexpected login error:", error);
+      Alert.alert("Error", "Something went wrong. Please try again.");
     }
   };
-
+  
   // useEffect(() => {
   //   const clearFlags = async () => {
   //     await AsyncStorage.removeItem("faceIdEnabled");
   //     await AsyncStorage.removeItem("hasLoggedInBefore");
   //     console.log("✅ Cleared faceIdEnabled and hasLoggedInBefore");
   //   };
-  
+
   //   clearFlags();
   // }, []);
-  
+
   useEffect(() => {
     const checkFaceId = async () => {
       const hasLoggedInBefore = await AsyncStorage.getItem("hasLoggedInBefore");
       const faceIdEnabled = await AsyncStorage.getItem("faceIdEnabled");
-  
-      if (
-        hasLoggedInBefore === "true" &&
-        faceIdEnabled === "true"
-      ) {
+
+      if (hasLoggedInBefore === "true" && faceIdEnabled === "true") {
         const hasHardware = await LocalAuthentication.hasHardwareAsync();
-        const supported = await LocalAuthentication.supportedAuthenticationTypesAsync();
+        const supported =
+          await LocalAuthentication.supportedAuthenticationTypesAsync();
         const enrolled = await LocalAuthentication.isEnrolledAsync();
-  
+
         if (hasHardware && supported.length && enrolled) {
           const result = await LocalAuthentication.authenticateAsync({
             promptMessage: "Authenticate with Face ID",
           });
-  
+
           if (result.success) {
             router.replace("/(tabs)/home");
           }
         }
       }
     };
-  
+
     checkFaceId();
   }, []);
-  
 
   return (
     <SafeAreaView style={styles.container}>

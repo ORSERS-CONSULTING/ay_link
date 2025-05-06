@@ -50,6 +50,7 @@ export default function HistoryScreen() {
   const [showFilters, setShowFilters] = useState(false);
   const [scrollY, setScrollY] = useState(0);
   const searchInputRef = useRef<TextInput>(null);
+  const [isNavigating, setIsNavigating] = useState(false);
 
   useEffect(() => {
     if (showSearch) {
@@ -181,8 +182,11 @@ export default function HistoryScreen() {
   const renderItem = ({ item }: { item: Log }) => (
     <TouchableOpacity
       onPress={() => {
+        if (isNavigating) return; // prevent double tap
+        setIsNavigating(true);
         setSelectedRequest(item);
         router.push("/request-detail-screen");
+        setTimeout(() => setIsNavigating(false), 1000); // reset after 1s
       }}
       style={styles.card}
       activeOpacity={0.85}
@@ -360,7 +364,7 @@ export default function HistoryScreen() {
       fontSize: 18,
       fontWeight: "bold",
       color: "#1E1E4B",
-       maxWidth: "72%" 
+      maxWidth: "72%",
     },
 
     timeText: {

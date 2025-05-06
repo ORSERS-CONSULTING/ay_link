@@ -86,6 +86,8 @@ export default function HomeScreen() {
   const [scrollY, setScrollY] = useState(0);
   const { requests, setRequests, getVisibleRequests, updateRequestStatus } =
     useClientRequests();
+  const [isNavigating, setIsNavigating] = useState(false);
+
 
   useEffect(() => {
     if (showSearch) {
@@ -119,16 +121,17 @@ export default function HomeScreen() {
         }));
 
         const formattedChartData = response
-        .filter((item: any) => item.status === "APPROVED")
-        .map((item: any) => ({
-          clientName: item.company_name,
-          requestedAmount: item.credit_amount,
-          departmentName: item.department_name,
-          companyCode: item.company_code,
-          timestamp: item.requested_at,
-          decisionTime: item.decision_time, // ✅ Add this
-           status: "Approved"
-        }));
+  .filter((item: any) => ["APPROVED", "REJECTED"].includes(item.status))
+  .map((item: any) => ({
+    clientName: item.company_name.trim(),
+    requestedAmount: item.credit_amount,
+    departmentName: item.department_name,
+    companyCode: item.company_code,
+    timestamp: item.requested_at,
+    decisionTime: item.decision_time,
+    status: item.status === "APPROVED" ? "Approved" : "Rejected",
+  }));
+
       
 
       // 🔁 Update global shared requests
@@ -348,9 +351,13 @@ export default function HomeScreen() {
 
       <TouchableOpacity
         onPress={() => {
+          if (isNavigating) return; // prevent double tap
+          setIsNavigating(true);
           setSelectedRequest(item);
           router.push("/request-detail-screen");
+          setTimeout(() => setIsNavigating(false), 1000); // reset after 1s
         }}
+        
       >
         <View style={styles.clientRow}>
           <View style={styles.clientNameWrapper}>
@@ -838,9 +845,23 @@ export default function HomeScreen() {
             />
           }
         >
-          {filteredData.map((item) => (
-            <View key={item.id}>{renderItem({ item })}</View>
-          ))}
+          {filteredData.length === 0 ? (
+  <View style={{ alignItems: "center", marginTop: 60 }}>
+  <Ionicons name="archive-outline" size={64} color="#999" style={{ marginBottom: 16 }} />
+  <Text style={{ fontSize: 18, fontWeight: "600", color: "#aaa" }}>All Clear!</Text>
+  <Text style={{ fontSize: 14, color: "#888", marginTop: 4, textAlign: "center", paddingHorizontal: 20 }}>
+    There are no credit requests to show at the moment.
+  </Text>
+  <Text style={{ fontSize: 13, color: "#aaa", marginTop: 12, textAlign: "center", paddingHorizontal: 30 }}>
+    Try pulling down to refresh, or clear your filters to see more requests.
+  </Text>
+</View>
+) : (
+  filteredData.map((item) => (
+    <View key={item.id}>{renderItem({ item })}</View>
+  ))
+)}
+
         </ScrollView>
 
         <Toast />
