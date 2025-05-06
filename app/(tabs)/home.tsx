@@ -32,13 +32,13 @@ import {
   sendBackRequest,
 } from "@/utils/api";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useFocusEffect } from "@react-navigation/native";
 import { useSelectedRequest } from "@/context/SelectedRequestContext";
 import {
   useClientRequests,
   ClientRequest,
   RequestStatus,
 } from "@/context/ClientRequestContext";
+import { useDailyTotal } from "@/hooks/useDailyTotal"; // update path accordingly
 
 type Client = {
   id: string;
@@ -71,7 +71,7 @@ export default function HomeScreen() {
   const [additionalInfo, setAdditionalInfo] = useState("");
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  const { chartData, setChartData, getTotalIncreasedAmount } = useChartData();
+  const { chartData, setChartData} = useChartData();
   const insets = useSafeAreaInsets();
   const { setSelectedRequest } = useSelectedRequest();
 
@@ -127,6 +127,7 @@ export default function HomeScreen() {
           companyCode: item.company_code,
           timestamp: item.requested_at,
           decisionTime: item.decision_time, // ✅ Add this
+           status: "Approved"
         }));
       
 
@@ -156,17 +157,8 @@ export default function HomeScreen() {
     return ["All", ...Array.from(new Set(names))];
   }, [requests]);
 
-  const [totalIncreased, setTotalIncreased] = useState(0);
+  const totalIncreased = useDailyTotal(chartData, selectedDate);
 
-  useFocusEffect(
-    useCallback(() => {
-      
-      const value = getTotalIncreasedAmount(selectedDate);
-      
-
-      setTotalIncreased(value);
-    }, [chartData, selectedDate])
-  );
 
   useEffect(() => {
     if (showConfirm) {

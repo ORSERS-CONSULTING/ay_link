@@ -24,9 +24,15 @@ type ChartDataContextType = {
   getClientSummary: (clientName: string, date?: Date | null) => ClientSummary;
 };
 
-const ChartDataContext = createContext<ChartDataContextType | undefined>(undefined);
+const ChartDataContext = createContext<ChartDataContextType | undefined>(
+  undefined
+);
 
-export const ChartDataProvider = ({ children }: { children: React.ReactNode }) => {
+export const ChartDataProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
   const [chartData, setChartData] = useState<ApprovedEntry[]>([]);
 
   useEffect(() => {
@@ -46,7 +52,10 @@ export const ChartDataProvider = ({ children }: { children: React.ReactNode }) =
           }));
         setChartData(formatted);
 
-        console.log("🧾 Loaded approved entries:", formatted.filter(e => e.status === "Approved"));
+        console.log(
+          "🧾 Loaded approved entries:",
+          formatted.filter((e) => e.status === "Approved")
+        );
       } catch (e) {
         Toast.show({ type: "error", text1: "Failed to load chart data." });
       }
@@ -56,25 +65,27 @@ export const ChartDataProvider = ({ children }: { children: React.ReactNode }) =
   }, []);
 
   const getTotalIncreasedAmount = (date?: Date | null): number => {
-    console.log("📆 getTotalIncreasedAmount - selectedDate:", date?.toISOString());
-
-    if (!date) {
-      return chartData
-        .filter((entry) => entry.status === "Approved")
-        .reduce((sum, entry) => sum + entry.requestedAmount, 0);
-    }
+    const targetDate = date ?? new Date(); // Use current date if none is provided
+    console.log(
+      "📆 getTotalIncreasedAmount - using date:",
+      targetDate.toISOString()
+    );
 
     return chartData
       .filter(
         (entry) =>
           entry.status === "Approved" &&
           (entry.decisionTime || entry.timestamp) &&
-          new Date(entry.decisionTime || entry.timestamp).toDateString() === date.toDateString()
+          new Date(entry.decisionTime || entry.timestamp).toDateString() ===
+            targetDate.toDateString()
       )
       .reduce((sum, entry) => sum + entry.requestedAmount, 0);
   };
 
-  const getClientSummary = (clientName: string, date?: Date | null): ClientSummary => {
+  const getClientSummary = (
+    clientName: string,
+    date?: Date | null
+  ): ClientSummary => {
     const filtered = chartData.filter((entry) => {
       const matchesClient = entry.clientName === clientName;
       const entryDate = entry.decisionTime || entry.timestamp;
@@ -99,7 +110,12 @@ export const ChartDataProvider = ({ children }: { children: React.ReactNode }) =
 
   return (
     <ChartDataContext.Provider
-      value={{ chartData, setChartData, getTotalIncreasedAmount, getClientSummary }}
+      value={{
+        chartData,
+        setChartData,
+        getTotalIncreasedAmount,
+        getClientSummary,
+      }}
     >
       {children}
     </ChartDataContext.Provider>
