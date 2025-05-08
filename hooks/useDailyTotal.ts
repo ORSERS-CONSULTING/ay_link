@@ -16,28 +16,47 @@ const isSameDay = (d1: Date, d2: Date): boolean =>
 export const useDailyTotal = (
   chartData: Entry[],
   selectedDate?: Date | null
-): number => {
-  const [total, setTotal] = useState(0);
+) => {
+  const [summary, setSummary] = useState({
+    totalApproved: 0,
+    totalRejected: 0,
+    countApproved: 0,
+    countRejected: 0,
+  });
 
   useEffect(() => {
     if (!chartData || chartData.length === 0) return;
 
     const targetDate = normalizeDate(selectedDate ?? new Date());
 
-    const dailyTotal = chartData
-      .filter(
-        (entry) =>
-          entry.status === "Approved" &&
-          (entry.decisionTime || entry.timestamp) &&
-          isSameDay(
-            normalizeDate(new Date(entry.decisionTime || entry.timestamp)),
-            targetDate
-          )
-      )
-      .reduce((sum, entry) => sum + entry.requestedAmount, 0);
+    let totalApproved = 0;
+    let totalRejected = 0;
+    let countApproved = 0;
+    let countRejected = 0;
 
-    setTotal(dailyTotal);
+    chartData.forEach((entry) => {
+      const dateToCompare = normalizeDate(
+        new Date(entry.decisionTime || entry.timestamp)
+      );
+
+      if (!isSameDay(dateToCompare, targetDate)) return;
+
+      if (entry.status === "Approved") {
+        totalApproved += entry.requestedAmount;
+        countApproved++;
+      } else if (entry.status === "Rejected") {
+        totalRejected += entry.requestedAmount;
+        countRejected++;
+      }
+    });
+
+    setSummary({
+      totalApproved,
+      totalRejected,
+      countApproved,
+      countRejected,
+    });
   }, [chartData, selectedDate]);
 
-  return total;
+  return summary;
 };

@@ -1,11 +1,16 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import {
   View,
   Text,
   FlatList,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   Platform,
   TextInput,
   Modal,
@@ -21,6 +26,7 @@ import Toast from "react-native-toast-message";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSelectedRequest } from "@/context/SelectedRequestContext";
 import { useFocusEffect } from "@react-navigation/native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const statuses = ["All", "Approved", "Rejected"];
 
@@ -103,17 +109,19 @@ export default function HistoryScreen() {
   const capitalize = (text: string | undefined | null) =>
     text ? text.charAt(0).toUpperCase() + text.slice(1).toLowerCase() : "";
 
-  const filteredLogs = logs.filter((log) => {
-    const matchesSearch = log.clientName
-      .toLowerCase()
-      .includes(search.toLowerCase());
-    const statusMatch = filter === "All" || log.status === filter;
-    const dateMatch = selectedDate
-      ? new Date(log.timestamp).toDateString() ===
-        new Date(selectedDate).toDateString()
-      : true;
-    return matchesSearch && statusMatch && dateMatch;
-  });
+  const filteredLogs = useMemo(() => {
+    return logs.filter((log) => {
+      const matchesSearch = log.clientName
+        .toLowerCase()
+        .includes(search.toLowerCase());
+      const statusMatch = filter === "All" || log.status === filter;
+      const dateMatch = selectedDate
+        ? new Date(log.timestamp).toDateString() ===
+          new Date(selectedDate).toDateString()
+        : true;
+      return matchesSearch && statusMatch && dateMatch;
+    });
+  }, [logs, search, filter, selectedDate]);
 
   const formatSubmittedTime = (timestamp: string) => {
     const now = new Date();
@@ -179,62 +187,63 @@ export default function HistoryScreen() {
   };
   // type Log = (typeof dummyLogs)[0];
 
-  const renderItem = ({ item }: { item: Log }) => (
-    <TouchableOpacity
-      onPress={() => {
-        if (isNavigating) return; // prevent double tap
-        setIsNavigating(true);
-        setSelectedRequest(item);
-        router.push("/request-detail-screen");
-        setTimeout(() => setIsNavigating(false), 1000); // reset after 1s
-      }}
-      style={styles.card}
-      activeOpacity={0.85}
-    >
-      <View style={styles.cardTopRow}>
-        <View>
-          <View style={styles.clientRow}>
-            <Text
-              style={styles.clientName}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
-              {item.clientName}
+  const RenderItem = useCallback(
+    ({ item }: { item: Log }) => (
+      <TouchableOpacity
+        onPress={() => {
+          if (isNavigating) return;
+          setIsNavigating(true);
+          setSelectedRequest(item);
+          router.push("/request-detail-screen");
+          setTimeout(() => setIsNavigating(false), 1000);
+        }}
+        style={styles.card}
+        activeOpacity={0.85}
+      >
+        <View style={styles.cardTopRow}>
+          <View>
+            <View style={styles.clientRow}>
+              <Text
+                style={styles.clientName}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {item.clientName}
+              </Text>
+              <Text style={styles.timeText}>
+                {formatSubmittedTime(item.timestamp)}
+              </Text>
+            </View>
+            <Text style={styles.label}>
+              Requested: AED{" "}
+              {item.requestedAmount.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
             </Text>
-            <Text style={styles.timeText}>
-              {formatSubmittedTime(item.timestamp)}
+            <Text
+              style={[
+                styles.label,
+                item.status === "Approved"
+                  ? styles.approved
+                  : item.status === "Rejected"
+                  ? styles.rejected
+                  : styles.pending,
+              ]}
+            >
+              {item.status}
             </Text>
           </View>
-
-          <Text style={styles.label}>
-            Requested: AED{" "}
-            {item.requestedAmount.toLocaleString("en-US", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
-          </Text>
-
-          <Text
-            style={[
-              styles.label,
-              item.status === "Approved"
-                ? styles.approved
-                : item.status === "Rejected"
-                ? styles.rejected
-                : styles.pending,
-            ]}
-          >
-            {item.status}
-          </Text>
         </View>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    ),
+    [isNavigating]
   );
 
   const styles = StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: "#1E1E4B",
+      backgroundColor: "#F5F5F5",
       paddingHorizontal: 16,
       paddingBottom: 100,
     },
@@ -261,17 +270,17 @@ export default function HistoryScreen() {
       paddingVertical: 8,
       paddingHorizontal: 14,
       borderRadius: 20,
-      backgroundColor: "#3D3D6B",
+      backgroundColor: "#EDEDED",
     },
     filterText: {
       color: "#aaa",
       fontSize: 12,
     },
     activeFilter: {
-      backgroundColor: "#fff",
+      backgroundColor: "#2A2A5A",
     },
     activeFilterText: {
-      color: "#1E1E4B",
+      color: "#fff",
       fontWeight: "bold",
     },
     dateFilterButton: {
@@ -329,11 +338,11 @@ export default function HistoryScreen() {
     },
     safeArea: {
       flex: 1,
-      backgroundColor: "#1E1E4B",
+      backgroundColor: "#F5F5F5",
     },
     topBar: {
       marginTop: 30,
-      marginBottom: 12,
+      marginBottom: 8,
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
@@ -341,7 +350,7 @@ export default function HistoryScreen() {
     header: {
       fontSize: 24,
       fontWeight: "bold",
-      color: "#fff",
+      color: "#1E1E4B",
     },
     iconRow: {
       flexDirection: "row",
@@ -376,11 +385,11 @@ export default function HistoryScreen() {
   });
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={["left", "right", "bottom"]}>
       <View
         style={{
           flex: 1,
-          paddingTop: 4,
+          paddingTop: insets.top - 20,
           paddingBottom: insets.bottom,
           paddingHorizontal: 16,
         }}
@@ -390,14 +399,14 @@ export default function HistoryScreen() {
 
           <View style={styles.iconRow}>
             <TouchableOpacity onPress={() => setShowFilters((prev) => !prev)}>
-              <Ionicons name="filter-outline" size={22} color="#fff" />
+              <Ionicons name="filter-outline" size={22} color="#1E1E4B" />
             </TouchableOpacity>
 
             <TouchableOpacity onPress={() => setShowSearch((prev) => !prev)}>
               <Ionicons
                 name="search-outline"
                 size={22}
-                color="#fff"
+                color="#1E1E4B"
                 style={{ marginLeft: 12 }}
               />
             </TouchableOpacity>
@@ -406,7 +415,7 @@ export default function HistoryScreen() {
               <Ionicons
                 name="download-outline"
                 size={22}
-                color="#fff"
+                color="#1E1E4B"
                 style={{ marginLeft: 12 }}
               />
             </TouchableOpacity>
@@ -504,107 +513,140 @@ export default function HistoryScreen() {
           )
         ) : null}
 
-        <FlatList
-          data={filteredLogs}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContainer}
-          showsVerticalScrollIndicator={false}
-          scrollEventThrottle={16}
-          onScroll={(event) => {
-            const y = event.nativeEvent.contentOffset.y;
-            setScrollY(y);
-            if (y > 150) {
-              setShowSearch(false);
-              setShowFilters(false);
-            }
-          }}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={loadLogs} />
-          }
-          ListHeaderComponent={
-            <>
-              {showSearch && (
-                <View style={{ position: "relative", marginBottom: 12 }}>
-                  <TextInput
-                    ref={searchInputRef}
-                    placeholder="Search by client name..."
-                    placeholderTextColor="#aaa"
-                    style={[styles.searchInput, { paddingRight: 40 }]}
-                    value={search}
-                    onChangeText={setSearch}
-                  />
-                  <TouchableOpacity
-                    onPress={() => {
-                      setSearch("");
-                      setShowSearch(false);
-                    }}
-                    style={{
-                      position: "absolute",
-                      right: 12,
-                      top: 12,
-                    }}
-                  >
-                    <Ionicons name="close-circle" size={20} color="#aaa" />
-                  </TouchableOpacity>
-                </View>
-              )}
+        {showSearch && (
+          <View style={{ position: "relative", marginBottom: 12 }}>
+            <TextInput
+              ref={searchInputRef}
+              placeholder="Search by client name..."
+              placeholderTextColor="#aaa"
+              style={[styles.searchInput, { paddingRight: 40 }]}
+              value={search}
+              onChangeText={setSearch}
+            />
+            <TouchableOpacity
+              onPress={() => {
+                setSearch("");
+                setShowSearch(false);
+              }}
+              style={{
+                position: "absolute",
+                right: 12,
+                top: 12,
+              }}
+            >
+              <Ionicons name="close-circle" size={20} color="#aaa" />
+            </TouchableOpacity>
+          </View>
+        )}
 
-              {showFilters && (
-                <View style={styles.filtersContainer}>
-                  {statuses.map((status) => (
-                    <TouchableOpacity
-                      key={status}
-                      onPress={() => setFilter(status)}
-                      style={[
-                        styles.filterButton,
-                        filter === status && styles.activeFilter,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.filterText,
-                          filter === status && styles.activeFilterText,
-                        ]}
-                      >
-                        {status}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-
-              <View style={{ alignItems: "center", marginBottom: 10 }}>
-                <TouchableOpacity
-                  onPress={() => setShowDatePicker(true)}
-                  style={styles.dateFilterButton}
+        {showFilters && (
+          <View style={styles.filtersContainer}>
+            {statuses.map((status) => (
+              <TouchableOpacity
+                key={status}
+                onPress={() => setFilter(status)}
+                style={[
+                  styles.filterButton,
+                  filter === status && styles.activeFilter,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.filterText,
+                    filter === status && styles.activeFilterText,
+                  ]}
                 >
-                  <Ionicons name="calendar-outline" size={16} color="#1E1E4B" />
-                  <Text style={styles.dateFilterText}>
-                    {selectedDate
-                      ? ` ${selectedDate.toLocaleDateString()}`
-                      : " Filter by Date"}
-                  </Text>
-                </TouchableOpacity>
+                  {status}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
-                {selectedDate && (
-                  <TouchableOpacity onPress={() => setSelectedDate(null)}>
-                    <Text
-                      style={{
-                        color: "#aaa",
-                        fontSize: 14,
-                        textDecorationLine: "underline",
-                        fontWeight: "500",
-                      }}
-                    >
-                      Clear Date Filter
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </>
-          }
-        />
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginTop: 10,
+            marginBottom: 10,
+          }}
+        >
+          <TouchableOpacity
+            onPress={() => setShowDatePicker(true)}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+            }}
+          >
+            <Ionicons name="calendar-outline" size={16} color="#1E1E4B" />
+            <Text style={[styles.dateFilterText, { marginLeft: 2 }]}>
+              {selectedDate
+                ? selectedDate.toLocaleDateString()
+                : new Date().toLocaleDateString()}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {selectedDate && (
+          <TouchableOpacity
+            onPress={() => setSelectedDate(null)}
+            style={{ marginBottom: 10 }}
+          >
+            <Text
+              style={{
+                textAlign: "center",
+                fontSize: 13,
+                color: "#999",
+                textDecorationLine: "underline",
+              }}
+            >
+              Clear Date Filter
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {filteredLogs.length === 0 && (
+          <Text
+            style={{
+              textAlign: "center",
+              color: "#4B4B4B",
+              marginTop: 20,
+              fontSize: 14,
+            }}
+          >
+            No activity logs found for the selected filters.
+          </Text>
+        )}
+
+        {filteredLogs.length > 0 && (
+          <FlatList
+            data={filteredLogs}
+            renderItem={({ item }) => <RenderItem item={item} />}
+            keyExtractor={(item) => item.id}
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            getItemLayout={(_, index) => ({
+              length: 100,
+              offset: 100 * index,
+              index,
+            })}
+            contentContainerStyle={styles.listContainer}
+            showsVerticalScrollIndicator={false}
+            scrollEventThrottle={16}
+            onScroll={(event) => {
+              const y = event.nativeEvent.contentOffset.y;
+              setScrollY(y);
+              if (y > 150) {
+                setShowSearch(false);
+                setShowFilters(false);
+              }
+            }}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={loadLogs} />
+            }
+          />
+        )}
       </View>
     </SafeAreaView>
   );

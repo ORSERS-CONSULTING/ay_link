@@ -1,16 +1,18 @@
-import { Stack, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   ScrollView,
   TextInput,
   Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  useSafeAreaInsets,
+  SafeAreaView,
+} from "react-native-safe-area-context";
 import React, { useEffect, useState } from "react";
 import Toast from "react-native-toast-message";
 import { useSelectedRequest } from "@/context/SelectedRequestContext";
@@ -21,15 +23,15 @@ import {
   rejectRequest,
 } from "@/utils/api";
 import { useChartData } from "@/context/ChartDataContext";
-import {
-  useClientRequests,
-} from "@/context/ClientRequestContext";
+import { useClientRequests } from "@/context/ClientRequestContext";
+import { RefreshControl } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function RequestDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { selectedRequest, setSelectedRequest } = useSelectedRequest();
-  const { getClientSummary, chartData } = useChartData();
+  const { chartData, setChartData } = useChartData();
   const { updateRequestStatus, setRequests } = useClientRequests();
 
   const [showConfirm, setShowConfirm] = useState(false);
@@ -37,6 +39,7 @@ export default function RequestDetailScreen() {
     "accept" | "reject" | ""
   >("");
   const [rejectionNote, setRejectionNote] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
 
   const [transactionStats, setTransactionStats] = useState<{
     invoice_count: number;
@@ -57,6 +60,7 @@ export default function RequestDetailScreen() {
   }, [selectedRequest?.companyCode]);
 
   useEffect(() => {
+    console.log("sssssssssssss", selectedRequest);
     return () => setSelectedRequest(null);
   }, []);
 
@@ -93,20 +97,69 @@ export default function RequestDetailScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   // const { approvedAmount, rejectedAmount } = getClientSummary(clientName);
+  const loadClientsAndChartData = async () => {
+    try {
+      const response = await fetchClientRequests();
 
+      const formattedClients = response.map((item: any) => ({
+        id: item.request_id.toString(),
+        clientName: item.company_name.trim(),
+        currentBalance: 0,
+        requestedAmount: item.credit_amount,
+        status:
+          item.status === "PENDING"
+            ? "Pending"
+            : item.status === "APPROVED"
+            ? "Approved"
+            : item.status === "REJECTED"
+            ? "Rejected"
+            : item.status === "ON HOLD"
+            ? "On hold"
+            : "Pending",
+        timestamp: item.requested_at,
+        rejectionNote: item.rejection_comment || "",
+        reason: item.reason,
+        departmentName: item.department_name,
+        companyCode: item.company_code,
+        decisionTime: item.decision_time || null,
+        approver: item.approver || null,
+        name: item.name || "",
+      }));
+
+      const chartDataItems = response
+        .filter((item: any) => ["APPROVED", "REJECTED"].includes(item.status))
+        .map((item: any) => ({
+          clientName: item.company_name.trim(),
+          requestedAmount: item.credit_amount,
+          departmentName: item.department_name,
+          companyCode: item.company_code,
+          timestamp: item.requested_at,
+          decisionTime: item.decision_time,
+          status: item.status === "APPROVED" ? "Approved" : "Rejected",
+        }));
+
+      setRequests(formattedClients);
+      setChartData(chartDataItems);
+    } catch (error) {
+      Toast.show({ type: "error", text1: "Failed to reload data." });
+    }
+  };
   const handleConfirmAction = async () => {
     if (!selectedRequest || isProcessing) return;
     setIsProcessing(true);
 
     try {
       if (selectedAction === "accept") {
+        const username = await AsyncStorage.getItem("email");
         await approveRequest(selectedRequest.id);
+
         Toast.show({ type: "success", text1: "Request approved!" });
+        await loadClientsAndChartData(); 
       } else if (selectedAction === "reject") {
         await rejectRequest(selectedRequest.id, rejectionNote.trim());
         Toast.show({ type: "success", text1: "Request rejected!" });
+        await loadClientsAndChartData();
       }
-
       const refreshedRequests = await fetchClientRequests();
       const updated = refreshedRequests.find(
         (r: any) => r.request_id.toString() === selectedRequest.id
@@ -118,7 +171,7 @@ export default function RequestDetailScreen() {
 
         setLocalStatus(updatedStatus);
         setLocalDecisionTime(updated.decision_time || new Date().toISOString());
-        setLocalApprover("You");
+        // setLocalApprover(updated.approver || "You");
 
         if (updated.rejection_comment) {
           setLocalRejectionNote(updated.rejection_comment);
@@ -127,7 +180,7 @@ export default function RequestDetailScreen() {
         updateRequestStatus(selectedRequest.id, updatedStatus, {
           decisionTime: updated.decision_time,
           rejectionNote: updated.rejection_comment,
-          approver: "You",
+          // approver: updated.approver,
         });
       }
     } catch (error) {
@@ -156,23 +209,62 @@ export default function RequestDetailScreen() {
 
     return filtered.reduce((sum, entry) => sum + entry.requestedAmount, 0);
   };
+  const onRefresh = async () => {
+    if (!selectedRequest) return;
+    setRefreshing(true);
+    try {
+      const refreshedRequests = await fetchClientRequests();
+      const updated = refreshedRequests.find(
+        (r: any) => r.request_id.toString() === selectedRequest.id
+      );
+
+      if (updated) {
+        const updatedStatus =
+          updated.status === "APPROVED" ? "Approved" : "Rejected";
+
+        setLocalStatus(updatedStatus);
+        setLocalDecisionTime(updated.decision_time || new Date().toISOString());
+        setLocalApprover(updated.approver || "You");
+
+        if (updated.rejection_comment) {
+          setLocalRejectionNote(updated.rejection_comment);
+        }
+
+        updateRequestStatus(selectedRequest.id, updatedStatus, {
+          decisionTime: updated.decision_time,
+          rejectionNote: updated.rejection_comment,
+          approver: updated.approver || "You",
+        });
+      }
+      console.log("selectedrequest", selectedRequest);
+
+      const stats = await fetchTransactionStats(selectedRequest.companyCode);
+      setTransactionStats(stats);
+    } catch (error) {
+      Toast.show({ type: "error", text1: "Refresh failed." });
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-        <Ionicons name="arrow-back" size={24} color="#fff" />
+        <Ionicons name="arrow-back" size={24} color="#1E1E4B" />
       </TouchableOpacity>
 
       <ScrollView
         contentContainerStyle={{
           flexGrow: 1,
+          //paddingTop:insets.top,
           paddingBottom: insets.bottom + 16,
           paddingHorizontal: 16,
         }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
-        <Stack.Screen options={{ headerShown: false }} />
-
         <View style={styles.card}>
           {/* Department + Status */}
           <View style={styles.cardHeader}>
@@ -199,8 +291,8 @@ export default function RequestDetailScreen() {
           <Text style={styles.label}>Company Code</Text>
           <Text style={styles.value}>{companyCode}</Text>
 
-          <Text style={styles.label}>Current Balance</Text>
-          <Text style={styles.value}>AED {currentBalance}</Text>
+          {/* <Text style={styles.label}>Current Balance</Text>
+          <Text style={styles.value}>AED {currentBalance}</Text> */}
 
           <Text style={styles.label}>Requested Amount</Text>
           <Text style={styles.value}>
@@ -248,7 +340,9 @@ export default function RequestDetailScreen() {
                   : "-"}
               </Text>
               <Text style={styles.label}>Approver</Text>
-              <Text style={styles.value}>{localApprover || "-"}</Text>
+              <Text style={styles.value}>
+                {selectedRequest.approver || "-"}
+              </Text>
             </>
           )}
 
@@ -286,44 +380,40 @@ export default function RequestDetailScreen() {
 
           {/* Stats */}
           <View style={styles.summaryGrid}>
-          <View style={styles.summaryBox}>
-    <Ionicons
-      name="checkmark-done-outline"
-      size={20}
-      color="#1E1E4B"
-    />
-    <Text
-      style={styles.summaryValue}
-      numberOfLines={1}
-      adjustsFontSizeToFit
-    >
-      AED{" "}
-      {getClientAmountByStatus("Approved").toLocaleString("en-US", {
-        minimumFractionDigits: 2,
-      })}
-    </Text>
-    <Text style={styles.summaryLabel}>Total Approved</Text> {/* ✅ label added */}
-  </View>
+            <View style={styles.summaryBox}>
+              <Ionicons
+                name="checkmark-done-outline"
+                size={20}
+                color="#1E1E4B"
+              />
+              <Text
+                style={styles.summaryValue}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+              >
+                AED{" "}
+                {getClientAmountByStatus("Approved").toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                })}
+              </Text>
+              <Text style={styles.summaryLabel}>Total Approved</Text>
+            </View>
 
-  {/* Rejected Box */}
-  <View style={styles.summaryBox}>
-    <Ionicons
-      name="close-circle-outline"
-      size={20}
-      color="#1E1E4B"
-    />
-    <Text
-      style={styles.summaryValue}
-      numberOfLines={1}
-      adjustsFontSizeToFit
-    >
-      AED{" "}
-      {getClientAmountByStatus("Rejected").toLocaleString("en-US", {
-        minimumFractionDigits: 2,
-      })}
-    </Text>
-    <Text style={styles.summaryLabel}>Total Rejected</Text> {/* ✅ label added */}
-  </View>
+            {/* Rejected Box */}
+            <View style={styles.summaryBox}>
+              <Ionicons name="close-circle-outline" size={20} color="#1E1E4B" />
+              <Text
+                style={styles.summaryValue}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+              >
+                AED{" "}
+                {getClientAmountByStatus("Rejected").toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                })}
+              </Text>
+              <Text style={styles.summaryLabel}>Total Rejected</Text>
+            </View>
 
             <View style={styles.summaryBox}>
               <Ionicons
@@ -418,19 +508,6 @@ export default function RequestDetailScreen() {
                     Cancel
                   </Text>
                 </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.confirmBtn, { backgroundColor: "#999999" }]}
-                  onPress={() => {
-                    setShowConfirm(false);
-                    setSelectedAction("");
-                    setRejectionNote("");
-                  }}
-                >
-                  <Text style={{ color: "#fff", fontWeight: "bold" }}>
-                    Cancel
-                  </Text>
-                </TouchableOpacity>
               </View>
             </View>
           </View>
@@ -445,7 +522,7 @@ export default function RequestDetailScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#1E1E4B",
+    backgroundColor: "#F5F5F5",
   },
   backButton: {
     padding: 14,
@@ -600,6 +677,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#f4f4f4",
     borderRadius: 15,
     paddingVertical: 16,
+    paddingHorizontal: 4,
     width: "47%",
     alignItems: "center",
     marginBottom: 12,

@@ -66,25 +66,25 @@ export default function LoginScreen() {
       Alert.alert("Blocked", "Too many failed attempts. Try again later.");
       return;
     }
-  
+
     if (!email || !password) {
       Alert.alert("Required", "Both email and password are required.");
       return;
     }
-  
+
     try {
       const response = await loginUser(email, password);
-  
+
       if (response.success) {
         await AsyncStorage.setItem("faceIdEnabled", "true");
         await AsyncStorage.setItem("hasLoggedInBefore", "true");
         await AsyncStorage.setItem("email", email);
-  
+
         router.replace("/(tabs)/home");
       } else {
         const remaining = attemptsLeft - 1;
         setAttemptsLeft(remaining);
-  
+
         if (remaining <= 0) {
           setBlocked(true);
           Alert.alert(
@@ -100,7 +100,7 @@ export default function LoginScreen() {
       Alert.alert("Error", "Something went wrong. Please try again.");
     }
   };
-  
+
   // useEffect(() => {
   //   const clearFlags = async () => {
   //     await AsyncStorage.removeItem("faceIdEnabled");

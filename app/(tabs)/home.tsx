@@ -1,19 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
-import React, {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useCallback,
-} from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
-  FlatList,
   Modal,
   Platform,
-  SafeAreaView,
   StatusBar,
   StyleSheet,
   Text,
@@ -23,6 +15,7 @@ import {
   ScrollView,
   RefreshControl,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 import { useChartData } from "@/context/ChartDataContext";
 import {
@@ -39,6 +32,7 @@ import {
   RequestStatus,
 } from "@/context/ClientRequestContext";
 import { useDailyTotal } from "@/hooks/useDailyTotal"; // update path accordingly
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type Client = {
   id: string;
@@ -71,7 +65,7 @@ export default function HomeScreen() {
   const [additionalInfo, setAdditionalInfo] = useState("");
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  const { chartData, setChartData} = useChartData();
+  const { chartData, setChartData } = useChartData();
   const insets = useSafeAreaInsets();
   const { setSelectedRequest } = useSelectedRequest();
 
@@ -87,7 +81,6 @@ export default function HomeScreen() {
   const { requests, setRequests, getVisibleRequests, updateRequestStatus } =
     useClientRequests();
   const [isNavigating, setIsNavigating] = useState(false);
-
 
   useEffect(() => {
     if (showSearch) {
@@ -120,19 +113,17 @@ export default function HomeScreen() {
           name: item.name || "",
         }));
 
-        const formattedChartData = response
-  .filter((item: any) => ["APPROVED", "REJECTED"].includes(item.status))
-  .map((item: any) => ({
-    clientName: item.company_name.trim(),
-    requestedAmount: item.credit_amount,
-    departmentName: item.department_name,
-    companyCode: item.company_code,
-    timestamp: item.requested_at,
-    decisionTime: item.decision_time,
-    status: item.status === "APPROVED" ? "Approved" : "Rejected",
-  }));
-
-      
+      const formattedChartData = response
+        .filter((item: any) => ["APPROVED", "REJECTED"].includes(item.status))
+        .map((item: any) => ({
+          clientName: item.company_name.trim(),
+          requestedAmount: item.credit_amount,
+          departmentName: item.department_name,
+          companyCode: item.company_code,
+          timestamp: item.requested_at,
+          decisionTime: item.decision_time,
+          status: item.status === "APPROVED" ? "Approved" : "Rejected",
+        }));
 
       // 🔁 Update global shared requests
       setRequests(
@@ -160,8 +151,8 @@ export default function HomeScreen() {
     return ["All", ...Array.from(new Set(names))];
   }, [requests]);
 
-  const totalIncreased = useDailyTotal(chartData, selectedDate);
-
+  const { totalApproved, totalRejected, countApproved, countRejected } =
+    useDailyTotal(chartData, selectedDate);
 
   useEffect(() => {
     if (showConfirm) {
@@ -175,85 +166,63 @@ export default function HomeScreen() {
     }
   }, [showConfirm]);
 
-  // const handleConfirmAction = async () => {
-  //   if (!selectedClient) return;
-
-  //   try {
-  //     if (selectedAction === "accept") {
-  //       await approveRequest(selectedClient.id);
-  //       Toast.show({ type: "success", text1: "Request approved!" });
-  //       updateRequestStatus(selectedClient.id, "Approved");
-  //     } else if (selectedAction === "reject") {
-  //       await rejectRequest(selectedClient.id, rejectionNote.trim());
-  //       Toast.show({ type: "success", text1: "Request rejected!" });
-  //       updateRequestStatus(selectedClient.id, "Rejected", {
-  //         rejectionNote: rejectionNote.trim(),
-  //       });
-  //     }
-  //   } catch (error) {
-  //     Toast.show({ type: "error", text1: "Action failed. Try again." });
-  //   }
-
-  //   setShowConfirm(false);
-  //   setSelectedClient(null);
-  //   setSelectedAction("");
-  //   setRejectionNote("");
-  // };
-
   const handleConfirmAction = async () => {
-  if (!selectedClient) return;
+    if (!selectedClient) return;
 
-  console.log(
-    "➡️ Starting confirm action:",
-    selectedAction,
-    "for ID:",
-    selectedClient.id
-  );
+    // console.log(
+    //   "➡️ Starting confirm action:",
+    //   selectedAction,
+    //   "for ID:",
+    //   selectedClient.id
+    // );
 
-  try {
-    const now = new Date().toISOString().split(".")[0]; // this can still be used locally
+    try {
+      const now = new Date().toISOString().split(".")[0];
 
-    if (selectedAction === "accept") {
-      Toast.show({ type: "info", text1: "Sending approval..." });
+      if (selectedAction === "accept") {
+        Toast.show({ type: "info", text1: "Sending approval..." });
 
-      const result = await approveRequest(selectedClient.id); // ✅ removed `now`
-      console.log("✅ Approve response:", result);
+        const username = await AsyncStorage.getItem("email");
+        const result = await approveRequest(selectedClient.id);
+        console.log("✅ Approve response:", result);
 
-      Toast.show({ type: "success", text1: "Request approved!" });
-      updateRequestStatus(selectedClient.id, "Approved", {
-        decisionTime: now, // ✅ used only for frontend display
-        approver: "You",
-      });
+        Toast.show({ type: "success", text1: "Request approved!" });
+        updateRequestStatus(selectedClient.id, "Approved", {
+          decisionTime: now, // ✅ used only for frontend display
+          approver: username || "You",
+        });
+
+        loadClientsAndChartData();
+      }
+
+      if (selectedAction === "reject") {
+        Toast.show({ type: "info", text1: "Sending rejection..." });
+
+        const result = await rejectRequest(
+          selectedClient.id,
+          rejectionNote.trim() // ✅ removed `now`
+        );
+        console.log("✅ Reject response:", result);
+
+        Toast.show({ type: "success", text1: "Request rejected!" });
+        updateRequestStatus(selectedClient.id, "Rejected", {
+          decisionTime: now, // ✅ for UI only
+          approver: "You",
+          rejectionNote: rejectionNote.trim(),
+        });
+
+        loadClientsAndChartData();
+      }
+    } catch (error) {
+      console.error("❌ Action failed:", error);
+      Toast.show({ type: "error", text1: "Action failed. Try again." });
     }
 
-    if (selectedAction === "reject") {
-      Toast.show({ type: "info", text1: "Sending rejection..." });
-
-      const result = await rejectRequest(
-        selectedClient.id,
-        rejectionNote.trim() // ✅ removed `now`
-      );
-      console.log("✅ Reject response:", result);
-
-      Toast.show({ type: "success", text1: "Request rejected!" });
-      updateRequestStatus(selectedClient.id, "Rejected", {
-        decisionTime: now, // ✅ for UI only
-        approver: "You",
-        rejectionNote: rejectionNote.trim(),
-      });
-    }
-  } catch (error) {
-    console.error("❌ Action failed:", error);
-    Toast.show({ type: "error", text1: "Action failed. Try again." });
-  }
-
-  setShowConfirm(false);
-  setSelectedClient(null);
-  setSelectedAction("");
-  setRejectionNote("");
-};
-
-  
+    setShowConfirm(false);
+    setSelectedClient(null);
+    setSelectedAction("");
+    setRejectionNote("");
+  };
 
   const handleSendBack = async () => {
     if (!selectedClient || !additionalInfo.trim()) return;
@@ -357,7 +326,6 @@ export default function HomeScreen() {
           router.push("/request-detail-screen");
           setTimeout(() => setIsNavigating(false), 1000); // reset after 1s
         }}
-        
       >
         <View style={styles.clientRow}>
           <View style={styles.clientNameWrapper}>
@@ -452,8 +420,8 @@ export default function HomeScreen() {
       <View
         style={{
           flex: 1,
-          paddingTop: 35,
-          paddingBottom: insets.bottom,
+          //paddingTop: Platform.OS ===,
+          paddingBottom: insets.bottom - 20,
           paddingHorizontal: 16,
         }}
       >
@@ -563,77 +531,79 @@ export default function HomeScreen() {
           </View>
         </Modal>
 
-        {/* Summary Cards */}
-        <View style={[styles.summaryContainer, { justifyContent: "center" }]}>
-  <View style={styles.summaryCardFull}>
-    <Text style={styles.summaryTitle}>Total Increased</Text>
-    <Text style={[styles.summaryValue, { fontSize: 22 }]}>
-      AED{" "}
-      {totalIncreased.toLocaleString("en-US", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })}
-    </Text>
-  </View>
-</View>
-
-
-        {/* Filter & Search Row */}
+        {/* Title Row with Search Icon */}
+        {/* Title Row with Search and Filter Icons */}
         <View
           style={{
             flexDirection: "row",
-            justifyContent: "center",
+            justifyContent: "space-between",
             alignItems: "center",
-            marginBottom: 10,
-            position: "relative",
+            marginBottom: 2,
           }}
         >
-          <TouchableOpacity
-            onPress={() => setShowDatePicker(true)}
-            style={styles.dateFilterButton}
-          >
-            <Ionicons name="calendar-outline" size={16} color="#1E1E4B" />
-            <Text style={styles.dateFilterText}>
-              {selectedDate
-                ? ` ${selectedDate.toLocaleDateString()}`
-                : " Filter by Date"}
-            </Text>
-          </TouchableOpacity>
+          {/* <Ionicons name="open-outline" size={20} color="#1E1E4B" /> */}
 
-          <View
+          <Text
             style={{
-              position: "absolute",
-              right: 0,
-              flexDirection: "row",
-              gap: 8,
+              fontSize: 24,
+              fontWeight: "bold",
+              color: "#1E1E4B",
             }}
           >
+            Credit Requests
+          </Text>
+
+          <View style={{ flexDirection: "row", gap: 8 }}>
             <TouchableOpacity
               style={{
-                backgroundColor: "#1E1E4B",
+                backgroundColor: "#F5F5F5",
                 borderRadius: 20,
                 padding: 10,
               }}
               onPress={() => setShowFilters((prev) => !prev)}
             >
-              <Ionicons name="filter-outline" size={20} color="#fff" />
+              <Ionicons name="filter-outline" size={20} color="#1E1E4B" />
             </TouchableOpacity>
 
-            {!showSearch && (
-              <TouchableOpacity
-                style={{
-                  backgroundColor: "#1E1E4B",
-                  borderRadius: 20,
-                  padding: 10,
-                }}
-                onPress={() => setShowSearch(true)}
-              >
-                <Ionicons name="search" size={20} color="#fff" />
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity
+              style={{
+                backgroundColor: "#F5F5F5",
+                borderRadius: 20,
+                padding: 10,
+              }}
+              onPress={() => setShowSearch(true)}
+            >
+              <Ionicons name="search" size={20} color="#1E1E4B" />
+            </TouchableOpacity>
           </View>
         </View>
 
+        {/* Metrics for Date */}
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginTop: 10,
+            marginBottom: 10,
+          }}
+        >
+          <TouchableOpacity
+            onPress={() => setShowDatePicker(true)}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+            }}
+          >
+            <Ionicons name="calendar-outline" size={16} color="#1E1E4B" />
+            <Text style={[styles.dateFilterText, { marginLeft: 2 }]}>
+              {selectedDate
+                ? selectedDate.toLocaleDateString()
+                : new Date().toLocaleDateString()}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Clear Date Filter */}
         {selectedDate && (
           <TouchableOpacity
             onPress={() => setSelectedDate(null)}
@@ -641,11 +611,10 @@ export default function HomeScreen() {
           >
             <Text
               style={{
-                color: "#aaa",
-                fontSize: 14,
-                textDecorationLine: "underline",
-                fontWeight: "500",
                 textAlign: "center",
+                fontSize: 13,
+                color: "#999",
+                textDecorationLine: "underline",
               }}
             >
               Clear Date Filter
@@ -795,7 +764,7 @@ export default function HomeScreen() {
               ))}
             </View>
 
-            <View style={styles.filtersContainer}>
+            {/* <View style={styles.filtersContainer}>
               {uniqueRequesters.map((name) => (
                 <TouchableOpacity
                   key={name}
@@ -815,7 +784,7 @@ export default function HomeScreen() {
                   </Text>
                 </TouchableOpacity>
               ))}
-            </View>
+            </View> */}
           </>
         )}
 
@@ -837,31 +806,123 @@ export default function HomeScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={loadClientsAndChartData}
-              progressBackgroundColor="#ffffff" // background of the spinner circle
-    colors={["#1E1E4B"]} // Android spinner color(s)
-    tintColor="white" // iOS spinner color
-    title="Pull to refresh"
-    titleColor="#1E1E4B"
+              colors={["#1E1E4B"]} // Android spinner color(s)
+              title="Pull to refresh"
+              titleColor="#1E1E4B"
             />
           }
         >
-          {filteredData.length === 0 ? (
-  <View style={{ alignItems: "center", marginTop: 60 }}>
-  <Ionicons name="archive-outline" size={64} color="#999" style={{ marginBottom: 16 }} />
-  <Text style={{ fontSize: 18, fontWeight: "600", color: "#aaa" }}>All Clear!</Text>
-  <Text style={{ fontSize: 14, color: "#888", marginTop: 4, textAlign: "center", paddingHorizontal: 20 }}>
-    There are no credit requests to show at the moment.
-  </Text>
-  <Text style={{ fontSize: 13, color: "#aaa", marginTop: 12, textAlign: "center", paddingHorizontal: 30 }}>
-    Try pulling down to refresh, or clear your filters to see more requests.
-  </Text>
-</View>
-) : (
-  filteredData.map((item) => (
-    <View key={item.id}>{renderItem({ item })}</View>
-  ))
-)}
+          {/* Summary Cards Grid */}
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              justifyContent: "space-between",
+              marginBottom: 12,
+            }}
+          >
+            {[
+              // Map summary data if dynamic; here it's hardcoded
+              {
+                title: "Total Increased",
+                value: `AED ${totalApproved.toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}`,
+                color: "#2E7D32",
+              },
+              {
+                title: "Requests Accepted",
+                value: countApproved.toString(),
+                color: "#2E7D32",
+              },
+              {
+                title: "Total Declined",
+                value: `AED ${totalRejected.toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}`,
+                color: "#C62828",
+              },
+              {
+                title: "Requests Declined",
+                value: countRejected.toString(),
+                color: "#C62828",
+              },
+            ].map((item, idx) => (
+              <View
+                key={idx}
+                style={[styles.summaryCard, { width: "48%", marginBottom: 10 }]}
+              >
+                <Text style={styles.summaryTitle}>{item.title}</Text>
+                <Text style={[styles.summaryValue, { color: item.color }]}>
+                  {item.value}
+                </Text>
+              </View>
+            ))}
+          </View>
 
+          {/* Horizontal Divider */}
+          <View
+            style={{
+              height: 2,
+              backgroundColor: "#E0E0E0",
+              marginTop: 2,
+              marginBottom: 10,
+              borderRadius: 1,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.1,
+              shadowRadius: 2,
+            }}
+          />
+          {filteredData.length === 0 ? (
+            <View style={{ alignItems: "center", marginTop: 60 }}>
+              <Ionicons
+                name="archive-outline"
+                size={64}
+                color="#1E1E4B"
+                style={{ marginBottom: 16 }}
+              />
+
+              <Text
+                style={{ fontSize: 18, fontWeight: "600", color: "#1E1E4B" }}
+              >
+                All Clear!
+              </Text>
+
+              <Text
+                style={{
+                  fontSize: 14,
+                  color: "#4B4B4B",
+                  marginTop: 4,
+                  textAlign: "center",
+                  paddingHorizontal: 20,
+                }}
+              >
+                There are no credit requests to show at the moment.
+              </Text>
+
+              <Text
+                style={{
+                  fontSize: 13,
+                  color: "#6E6E6E",
+                  marginTop: 12,
+                  textAlign: "center",
+                  paddingHorizontal: 30,
+                }}
+              >
+                Try pulling down to refresh, or clear your filters to see more
+                requests.
+              </Text>
+            </View>
+          ) : (
+            filteredData.map((item) => (
+              <View key={item.id} style={{ marginTop: 12 }}>
+                {renderItem({ item })}
+              </View>
+            ))
+          )}
         </ScrollView>
 
         <Toast />
@@ -873,7 +934,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#1E1E4B",
+    backgroundColor: "#F5F5F5",
   },
   summaryContainer: {
     flexDirection: "row",
@@ -883,7 +944,6 @@ const styles = StyleSheet.create({
   },
 
   summaryCard: {
-    flex: 1,
     backgroundColor: "#fff",
     borderRadius: 16,
     paddingVertical: 14,
@@ -896,7 +956,6 @@ const styles = StyleSheet.create({
     elevation: 2,
     marginBottom: 12,
   },
-
   summaryCardLeft: {
     marginRight: 12, // adds a controlled gap between the two cards
   },
@@ -918,7 +977,7 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-    backgroundColor: "#1E1E4B",
+    backgroundColor: "#F5F5F5",
   },
 
   summaryTitle: {
@@ -1226,20 +1285,21 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 20,
-    backgroundColor: "#3D3D6B",
+    backgroundColor: "#EDEDED",
     margin: 4,
     marginHorizontal: 8, // ⬅️ Use this instead of generic `margin`
     marginVertical: 2,
   },
+
   filterText: {
     color: "#aaa",
     fontSize: 12,
   },
   activeFilter: {
-    backgroundColor: "#fff",
+    backgroundColor: "#2A2A5A",
   },
   activeFilterText: {
-    color: "#1E1E4B",
+    color: "#fff",
     fontWeight: "bold",
   },
   clientRow: {
@@ -1265,5 +1325,9 @@ const styles = StyleSheet.create({
     color: "#999",
     minWidth: 52, // ensure fixed space for consistent right alignment
     textAlign: "right",
+  },
+  summaryCardHalf: {
+    width: "48%", // ensures two cards per row with a gap
+    marginBottom: 12,
   },
 });

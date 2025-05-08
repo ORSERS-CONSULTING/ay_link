@@ -1,29 +1,35 @@
 import { Timestamp } from "react-native-reanimated/lib/typescript/commonTypes";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const BASE_URL =
   "https://yawrhzry16j0fw1-adtgsw3okapc1zpw.adb.me-dubai-1.oraclecloudapps.com/ords/aly_sandbox/credit_notify_api";
 
-  export const fetchClientRequests = async () => {
-    const res = await fetch(`${BASE_URL}/requests/`);
-    if (!res.ok) {
-      throw new Error("Failed to fetch client requests");
-    }
-  
-    const data = await res.json();
-  
-    return data.items.map((item: any) => ({
-      ...item,
-      clientName: item.clientName?.trim(),
-      companyCode: item.companyCode?.trim(),
-      departmentName: item.departmentName?.trim(),
-      status: item.status?.trim(),
-    }));
-  };
-  
+export const fetchClientRequests = async () => {
+  const res = await fetch(`${BASE_URL}/requests/`);
+  if (!res.ok) {
+    throw new Error("Failed to fetch client requests");
+  }
+
+  const data = await res.json();
+
+  return data.items.map((item: any) => ({
+    ...item,
+    clientName: item.clientName?.trim(),
+    companyCode: item.companyCode?.trim(),
+    departmentName: item.departmentName?.trim(),
+    status: item.status?.trim(),
+    approver: item.approver?.trim(),
+  }));
+};
 
 // ✅ Updated to safely handle 200 OK with or without JSON
+
 export async function approveRequest(requestId: string) {
-  const url = `${BASE_URL}/approve/?request_id=${requestId}`;
+  const approver = await AsyncStorage.getItem("email");
+  const url = `${BASE_URL}/approve/?request_id=${requestId}&approver_name=${encodeURIComponent(
+    approver || "unknown"
+  )}`;
+
   console.log("📤 Sending APPROVE:", { requestId, url });
 
   const res = await fetch(url, { method: "POST" });
@@ -43,7 +49,10 @@ export async function approveRequest(requestId: string) {
 }
 
 export async function rejectRequest(requestId: string, comment: string) {
-  const url = `${BASE_URL}/reject/?request_id=${requestId}&rejection_comment=${encodeURIComponent(comment)}`;
+  const approver = await AsyncStorage.getItem("email");
+  const url = `${BASE_URL}/reject/?request_id=${requestId}&rejection_comment=${encodeURIComponent(
+    comment
+  )}&approver_name=${encodeURIComponent(approver || "unknown")}`;
   console.log("📤 Sending REJECT:", { requestId, url });
 
   const res = await fetch(url, { method: "POST" });
@@ -62,10 +71,10 @@ export async function rejectRequest(requestId: string, comment: string) {
   }
 }
 
-
-
 export async function sendBackRequest(requestId: string, remarks: string) {
-  const url = `${BASE_URL}/sendBack?request_id=${requestId}&returned_remarks=${encodeURIComponent(remarks)}`;
+  const url = `${BASE_URL}/sendBack?request_id=${requestId}&returned_remarks=${encodeURIComponent(
+    remarks
+  )}`;
   const res = await fetch(url, { method: "POST" });
 
   if (!res.ok) {
@@ -93,7 +102,6 @@ export async function fetchTransactionStats(companyCode: string) {
   return data.items?.[0] ?? { invoice_count: 0, transaction_count: 0 };
 }
 
-
 export async function loginUser(username: string, password: string) {
   try {
     const res = await fetch(`${BASE_URL}/userAuthentication`, {
@@ -116,4 +124,3 @@ export async function loginUser(username: string, password: string) {
     return { success: false, message: "Something went wrong. Try again." };
   }
 }
-
