@@ -31,6 +31,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 const statuses = ["All", "Approved", "Rejected"];
 
 type Log = {
+  reason: string;
+  companyCode: string;
+  departmentName: string;
   id: string;
   clientName: string;
   requestedAmount: number;
@@ -142,50 +145,111 @@ export default function HistoryScreen() {
   const handleExportPDF = async () => {
     const html = `
       <html>
+        <head>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              padding: 20px;
+            }
+            h1 {
+              text-align: center;
+              color: #1E1E4B;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 20px;
+              font-size: 12px;
+            }
+            th, td {
+              border: 1px solid #ccc;
+              padding: 6px 8px;
+              text-align: left;
+              vertical-align: top;
+            }
+            th {
+              background-color: #F0F4F8;
+              color: #1E1E4B;
+              font-weight: bold;
+            }
+            tr:nth-child(even) {
+              background-color: #FAFAFA;
+            }
+            .placeholder {
+              color: #999;
+              font-style: italic;
+            }
+          </style>
+        </head>
         <body>
           <h1>Credit Approval Logs</h1>
-          <table border="1" cellspacing="0" cellpadding="6" style="width:100%; font-family:Arial;">
-            <tr>
-              <th>Client</th>
-              <th>Requested</th>
-              <th>Balance</th>
-              <th>Status</th>
-              <th>Submitted</th>
-              <th>Decision Time</th>
-              <th>Approver</th>
-              <th>Rejection Note</th>
-            </tr>
-            ${filteredLogs
-              .map(
-                (log) => `
-                  <tr>
-                    <td>${log.clientName}</td>
-                    <td>AED ${log.requestedAmount.toLocaleString("en-US", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}</td>
-<td>AED ${log.currentBalance.toLocaleString("en-US", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}</td>
-
-                    <td>${log.status}</td>
-                    <td>${log.timestamp}</td>
-                    <td>${log.decisionTime || "-"}</td>
-                    <td>${log.approver || "-"}</td>
-                    <td>${log.rejectionNote || "-"}</td>
-                  </tr>
-                `
-              )
-              .join("")}
+          <table>
+            <thead>
+              <tr>
+                <th>Department</th>
+                <th>Client</th>
+                <th>Company Code</th>
+                <th>Requested Amount</th>
+                <th>Reason</th>
+                <th>Status</th>
+                <th>Submitted At</th>
+                <th>Decision Time</th>
+                <th>Approver</th>
+                <th>Rejection Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredLogs
+                .map((log) => {
+                  const submittedAt = new Date(log.timestamp).toLocaleString("en-GB", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
+                  });
+  
+                  const decisionAt = log.decisionTime
+                    ? new Date(log.decisionTime).toLocaleString("en-GB", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: false,
+                      })
+                    : `<span class="placeholder">–</span>`;
+  
+                  return `
+                    <tr>
+                      <td>${log.departmentName || '<span class="placeholder">–</span>'}</td>
+                      <td>${log.clientName}</td>
+                      <td>${log.companyCode || '<span class="placeholder">–</span>'}</td>
+                      <td>AED ${log.requestedAmount.toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                      })}</td>
+                      <td>${log.reason || '<span class="placeholder">–</span>'}</td>
+                      <td>${log.status}</td>
+                      <td>${submittedAt}</td>
+                      <td>${decisionAt}</td>
+                      <td>${log.approver || '<span class="placeholder">–</span>'}</td>
+                      <td>${log.rejectionNote || '<span class="placeholder">–</span>'}</td>
+                    </tr>
+                  `;
+                })
+                .join("")}
+            </tbody>
           </table>
         </body>
       </html>
     `;
+  
     const { uri } = await Print.printToFileAsync({ html });
     await Sharing.shareAsync(uri);
   };
-  // type Log = (typeof dummyLogs)[0];
+  
+  
 
   const RenderItem = useCallback(
     ({ item }: { item: Log }) => (

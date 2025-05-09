@@ -1,0 +1,377 @@
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  Platform,
+} from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import * as Print from "expo-print";
+import * as Sharing from "expo-sharing";
+import { Ionicons } from "@expo/vector-icons";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import { fetchClientRequests } from "@/utils/api";
+import Toast from "react-native-toast-message";
+import { useFocusEffect } from "@react-navigation/native";
+
+type Log = {
+  reason: string;
+  companyCode: string;
+  departmentName: string;
+  id: string;
+  clientName: string;
+  requestedAmount: number;
+  currentBalance: number;
+  status: "Approved" | "Rejected" | "Pending";
+  timestamp: string;
+  decisionTime: string;
+  rejectionNote: string;
+  approver: string;
+};
+
+export default function DashboardScreen() {
+  const insets = useSafeAreaInsets(); // ✅ Moved inside component
+  const [logs, setLogs] = useState<Log[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [showPicker, setShowPicker] = useState(false);
+
+  const loadLogs = async () => {
+    try {
+      const response = await fetchClientRequests();
+      const filtered = response.filter(
+        (item: any) =>
+          item.status?.toLowerCase() === "approved" ||
+          item.status?.toLowerCase() === "rejected"
+      );
+      const formatted: Log[] = filtered.map((item: any) => ({
+        id: item.request_id.toString(),
+        clientName: item.company_name.trim(),
+        requestedAmount: item.credit_amount,
+        currentBalance: 0,
+        status: capitalize(item.status),
+        timestamp: item.requested_at,
+        decisionTime: item.decision_time || "",
+        approver: item.approver || "",
+        rejectionNote: item.rejection_comment || "",
+        departmentName: item.department_name || "N/A",
+        companyCode: item.company_code || "N/A",
+        reason: item.reason || "",
+      }));
+      setLogs(
+        formatted.sort(
+          (a, b) =>
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        )
+      );
+    } catch {
+      Toast.show({ type: "error", text1: "Failed to load logs." });
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      loadLogs();
+    }, [])
+  );
+
+  const capitalize = (text: string | undefined | null) =>
+    text ? text.charAt(0).toUpperCase() + text.slice(1).toLowerCase() : "";
+
+  const filteredLogs = useMemo(() => {
+    return logs.filter((log) => {
+      const logDate = new Date(log.timestamp).toDateString();
+      return selectedDate ? logDate === selectedDate.toDateString() : true; // ✅ Show all if no date selected
+    });
+  }, [logs, selectedDate]);
+
+  const handleExportPDF = async () => {
+    const html = `
+      <html>
+        <head>
+          <style>
+            body { font-family: Arial; padding: 20px; }
+            h1 { text-align: center; color: #1E1E4B; }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              font-size: 12px;
+              margin-top: 16px;
+            }
+            th, td {
+              border: 1px solid #ccc;
+              padding: 6px;
+              text-align: left;
+              vertical-align: top;
+            }
+            th {
+              background-color: #F0F4F8;
+              color: #1E1E4B;
+              font-weight: bold;
+            }
+            tr:nth-child(even) {
+              background-color: #FAFAFA;
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Dashboard - ${
+            selectedDate
+              ? selectedDate.toLocaleDateString()
+              : new Date().toLocaleDateString()
+          }
+</h1>
+          <table>
+            <tr>
+              <th>Department</th>
+              <th>Client</th>
+              <th>Company Code</th>
+              <th>Requested</th>
+              <th>Reason</th>
+              <th>Status</th>
+              <th>Submitted</th>
+              <th>Decision Time</th>
+              <th>Approver</th>
+              <th>Rejection Note</th>
+            </tr>
+            ${filteredLogs
+              .map((log) => {
+                const submittedAt = new Date(log.timestamp).toLocaleString(
+                  "en-GB"
+                );
+                const decisionAt = log.decisionTime
+                  ? new Date(log.decisionTime).toLocaleString("en-GB")
+                  : "-";
+                return `
+                <tr>
+                  <td>${log.departmentName}</td>
+                  <td>${log.clientName}</td>
+                  <td>${log.companyCode}</td>
+                  <td>AED ${log.requestedAmount.toFixed(2)}</td>
+                  <td>${log.reason || "-"}</td>
+                  <td>${log.status}</td>
+                  <td>${submittedAt}</td>
+                  <td>${decisionAt}</td>
+                  <td>${log.approver || "-"}</td>
+                  <td>${log.rejectionNote || "-"}</td>
+                </tr>`;
+              })
+              .join("")}
+          </table>
+        </body>
+      </html>
+    `;
+    const { uri } = await Print.printToFileAsync({ html });
+    await Sharing.shareAsync(uri);
+  };
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <View style={[styles.container, { paddingTop: insets.top - 35 }]}>
+        {/* Header Row */}
+        <View style={styles.topBar}>
+          <Text style={styles.header}>Dashboard</Text>
+          <TouchableOpacity onPress={handleExportPDF}>
+            <Ionicons
+              name="download-outline"
+              size={22}
+              color="#1E1E4B"
+              style={{ marginLeft: 12 }}
+            />
+          </TouchableOpacity>
+        </View>
+
+        {/* Date Picker Row */}
+        <View style={styles.dateRow}>
+          <TouchableOpacity
+            onPress={() => setShowPicker(true)}
+            style={{ flexDirection: "row", alignItems: "center" }}
+          >
+            <Ionicons name="calendar-outline" size={16} color="#1E1E4B" />
+            <Text style={[styles.dateFilterText, { marginLeft: 4 }]}>
+              {selectedDate
+                ? selectedDate.toLocaleDateString()
+                : new Date().toLocaleDateString()}
+            </Text>
+          </TouchableOpacity>
+        </View>
+        {selectedDate && (
+          <TouchableOpacity
+            onPress={() => setSelectedDate(null)}
+            style={{ marginBottom: 10 }}
+          >
+            <Text
+              style={{
+                textAlign: "center",
+                fontSize: 13,
+                color: "#999",
+                textDecorationLine: "underline",
+              }}
+            >
+              Clear Date Filter
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {showPicker && (
+          <DateTimePicker
+            value={selectedDate || new Date()} // ✅ fallback if null
+            mode="date"
+            display={Platform.OS === "ios" ? "inline" : "default"}
+            onChange={(_, date) => {
+              if (date) setSelectedDate(date);
+              setShowPicker(false);
+            }}
+          />
+        )}
+
+        {/* Scrollable Table */}
+        <ScrollView
+          style={styles.scrollWrapper}
+          showsVerticalScrollIndicator={false}
+        >
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={{ paddingHorizontal: 8 }}>
+              {/* Table Header */}
+              <View style={styles.tableHeader}>
+                {[
+                  "Department",
+                  "Client",
+                  "Company Code",
+                  "Requested",
+                  "Reason",
+                  "Status",
+                  "Submitted",
+                  "Decision Time",
+                  "Approver",
+                  "Rejection Note",
+                ].map((col) => (
+                  <Text key={col} style={styles.headerCell}>
+                    {col}
+                  </Text>
+                ))}
+              </View>
+
+              {/* Table Rows */}
+              {filteredLogs.length === 0 ? (
+                <Text style={styles.noDataText}>No records found.</Text>
+              ) : (
+                filteredLogs.map((log, index) => (
+                  <View
+                    key={log.id}
+                    style={[
+                      styles.tableRow,
+                      {
+                        backgroundColor: index % 2 === 0 ? "#fff" : "#F9FAFB",
+                      },
+                    ]}
+                  >
+                    <Text style={styles.cell}>{log.departmentName}</Text>
+                    <Text
+                      style={styles.cell}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      {log.clientName}
+                    </Text>
+                    <Text style={styles.cell}>{log.companyCode}</Text>
+                    <Text style={styles.cell}>
+                      AED {log.requestedAmount.toFixed(2)}
+                    </Text>
+                    <Text style={styles.cell}>{log.reason || "-"}</Text>
+                    <Text style={styles.cell}>{log.status}</Text>
+                    <Text style={styles.cell}>
+                      {new Date(log.timestamp).toLocaleString("en-GB")}
+                    </Text>
+                    <Text style={styles.cell}>
+                      {log.decisionTime
+                        ? new Date(log.decisionTime).toLocaleString("en-GB")
+                        : "-"}
+                    </Text>
+                    <Text style={styles.cell}>{log.approver || "-"}</Text>
+                    <Text style={styles.cell}>{log.rejectionNote || "-"}</Text>
+                  </View>
+                ))
+              )}
+            </View>
+          </ScrollView>
+        </ScrollView>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#F5F5F5",
+  },
+  container: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  topBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+    marginTop: 10,
+  },
+  header: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#1E1E4B",
+    paddingBottom: 8,
+  },
+  dateRow: {
+    marginTop: 6,
+    marginBottom: 12,
+  },
+  dateFilterText: {
+    color: "#1E1E4B",
+    fontWeight: "bold",
+    fontSize: 13,
+  },
+  tableHeader: {
+    flexDirection: "row",
+    backgroundColor: "#F0F4F8",
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderTopLeftRadius: 6,
+    borderTopRightRadius: 6,
+    borderBottomWidth: 1,
+    borderColor: "#E0E0E0", // 👈 new
+  },
+  headerCell: {
+    width: 130,
+    fontWeight: "bold",
+    fontSize: 13,
+    paddingHorizontal: 6,
+    color: "#1E1E4B",
+  },
+  tableRow: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  cell: {
+    width: 130,
+    fontSize: 13,
+    paddingHorizontal: 6,
+    color: "#1F2937",
+  },
+  noDataText: {
+    padding: 20,
+    fontStyle: "italic",
+    color: "#6B7280",
+  },
+  scrollWrapper: {
+    paddingBottom: 100, // 👈 ensures content doesn't get covered
+  },
+});
