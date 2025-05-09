@@ -17,18 +17,20 @@
       }
     },
     "android": {
-  "adaptiveIcon": {
-    "foregroundImage": "./assets/images/adaptive-icon.png",
-    "backgroundColor": "#ffffff"
-  },
-  "package": "com.tenioduola.creditApp",      
-  "googleServicesFile": "./google-services.json",
-  "versionCode": 2,
-  "permissions": [
-    "android.permission.USE_BIOMETRIC",
-    "android.permission.USE_FINGERPRINT"
-  ]
-},
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.tenioduola.creditApp",
+      "googleServicesFile": "./google-services.json",
+      "versionCode": 2,
+      "permissions": [
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
+      ]
+    },
     "web": {
       "bundler": "metro",
       "output": "static",
@@ -63,6 +65,12 @@
         "projectId": "a867d74b-7553-431e-895b-c225b596ce03"
       }
     },
-    "owner": "tenioduola"
+    "owner": "tenioduola",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/a867d74b-7553-431e-895b-c225b596ce03"
+    }
   }
 }

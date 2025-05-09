@@ -302,6 +302,7 @@ export default function HomeScreen() {
         <View style={styles.deptBadge}>
           <Text style={styles.deptText}>{item.departmentName}</Text>
         </View>
+        <Text style={styles.timeText}>{getTimeAgo(item.timestamp)}</Text>
         <View
           style={[
             styles.statusChip,
@@ -320,94 +321,75 @@ export default function HomeScreen() {
 
       <TouchableOpacity
         onPress={() => {
-          if (isNavigating) return; // prevent double tap
+          if (isNavigating) return;
           setIsNavigating(true);
           setSelectedRequest(item);
           router.push("/request-detail-screen");
-          setTimeout(() => setIsNavigating(false), 1000); // reset after 1s
+          setTimeout(() => setIsNavigating(false), 1000);
         }}
       >
         <View style={styles.clientRow}>
-          <View style={styles.clientNameWrapper}>
-            <Text
-              style={styles.clientName}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
-              {item.clientName}
-            </Text>
-          </View>
-          <Text style={styles.timeText}>{getTimeAgo(item.timestamp)}</Text>
+          <Text
+            style={styles.clientName}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {item.clientName}
+          </Text>
+          <Text style={styles.amount}>
+            AED{" "}
+            {item.requestedAmount.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
+          </Text>
         </View>
-
-        <Text style={styles.label}>Requested Amount:</Text>
-        <Text style={styles.value}>
-          AED{" "}
-          {item.requestedAmount.toLocaleString("en-US", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}
-        </Text>
-
-        {item.reason && (
-          <>
-            <Text style={styles.label}>Reason for Request:</Text>
-            <Text
-              style={styles.value}
-              numberOfLines={
-                expandedReasonIds.includes(item.id) ? undefined : 2
-              }
-            >
-              {item.reason}
-            </Text>
-            {item.reason.length > 60 && (
-              <TouchableOpacity onPress={() => toggleExpanded(item.id)}>
-                <Text style={styles.showToggle}>
-                  {expandedReasonIds.includes(item.id)
-                    ? "Show less"
-                    : "Show more"}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </>
-        )}
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.additionalInfoButton}
-        onPress={() => {
-          setSelectedClient(item);
-          setShowInfoModal(true);
-        }}
-      >
-        <Ionicons name="chatbox-ellipses-outline" size={16} color="#1E1E4B" />
-        <Text style={styles.additionalInfoText}>Request Additional Info</Text>
-      </TouchableOpacity>
+      <View style={styles.actionRow}>
+        <TouchableOpacity
+          onPress={() => {
+            setSelectedClient(item);
+            setShowInfoModal(true);
+          }}
+        >
+          <Ionicons name="chatbox-ellipses-outline" size={20} color="#1E1E4B" />
+        </TouchableOpacity>
 
-      <View style={styles.statusRow}>
         <View style={styles.actionButtons}>
           <TouchableOpacity
-            style={[styles.iconButton, { backgroundColor: "#2E7D32" }]}
-            onPress={() => {
-              setSelectedAction("accept");
-              setSelectedClient(item);
-              setShowConfirm(true);
-            }}
-          >
-            <Text style={{ color: "#fff", fontSize: 14, fontWeight: "bold" }}>
-              APPROVE
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.iconButton, { backgroundColor: "#C62828" }]}
+            style={[
+              styles.iconButton,
+              { backgroundColor: "rgba(198, 40, 40, 0.1)" },
+            ]}
             onPress={() => {
               setSelectedAction("reject");
               setSelectedClient(item);
               setShowConfirm(true);
             }}
           >
-            <Text style={{ color: "#fff", fontSize: 14, fontWeight: "bold" }}>
+            <Text
+              style={{ color: "#C62828", fontSize: 14, fontWeight: "bold" }}
+            >
               REJECT
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.iconButton,
+              { backgroundColor: "rgba(46, 125, 50, 0.1)" },
+            ]}
+            onPress={() => {
+              setSelectedAction("accept");
+              setSelectedClient(item);
+              setShowConfirm(true);
+            }}
+          >
+            <Text
+              style={{ color: "#2E7D32", fontSize: 14, fontWeight: "bold" }}
+            >
+              APPROVE
             </Text>
           </TouchableOpacity>
         </View>
@@ -457,18 +439,30 @@ export default function HomeScreen() {
                     styles.confirmBtn,
                     {
                       backgroundColor:
-                        selectedAction === "accept" ? "#2E7D32" : "#C62828",
+                        selectedAction === "accept"
+                          ? "rgba(46, 125, 50, 0.1)"
+                          : "rgba(198, 40, 40, 0.1)",
                     },
                   ]}
                   onPress={handleConfirmAction}
                 >
-                  <Text style={{ color: "#fff", fontWeight: "bold" }}>
-                    {selectedAction === "accept" ? "Approve" : "Reject"}
+                  <Text
+                    style={{
+                      color:
+                        selectedAction === "accept" ? "#2E7D32" : "#C62828",
+                      fontWeight: "bold",
+                      fontSize: 14,
+                    }}
+                  >
+                    {selectedAction === "accept" ? "APPROVE" : "REJECT"}
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.confirmBtn, { backgroundColor: "#999999" }]}
+                  style={[
+                    styles.confirmBtn,
+                    { backgroundColor: "rgba(153, 153, 153, 0.1)" },
+                  ]}
                   onPress={() => {
                     setShowConfirm(false);
                     setSelectedClient(null);
@@ -476,8 +470,14 @@ export default function HomeScreen() {
                     setRejectionNote("");
                   }}
                 >
-                  <Text style={{ color: "#fff", fontWeight: "bold" }}>
-                    Cancel
+                  <Text
+                    style={{
+                      color: "#666",
+                      fontWeight: "bold",
+                      fontSize: 14,
+                    }}
+                  >
+                    CANCEL
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -829,12 +829,12 @@ export default function HomeScreen() {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}`,
-                color: "#2E7D32",
+                color: "#1E1E4B",
               },
               {
                 title: "Requests Accepted",
                 value: countApproved.toString(),
-                color: "#2E7D32",
+                color: "#1E1E4B",
               },
               {
                 title: "Total Declined",
@@ -842,12 +842,12 @@ export default function HomeScreen() {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}`,
-                color: "#C62828",
+                color: "#1E1E4B",
               },
               {
                 title: "Requests Declined",
                 value: countRejected.toString(),
-                color: "#C62828",
+                color: "#1E1E4B",
               },
             ].map((item, idx) => (
               <View
@@ -1037,7 +1037,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
-    elevation: 5,
+    elevation: 2,
   },
 
   label: {
@@ -1050,45 +1050,41 @@ const styles = StyleSheet.create({
     color: "#333",
     marginBottom: 4,
   },
-  // status: {
-  //   fontSize: 16,
-  //   fontWeight: "bold",
-  //   flex: 1,
-  // },
-  // timestamp: {
-  //   fontSize: 12,
-  //   color: "#666",
-  //   flex: 1,
-  //   textAlign: "right",
-  // },
-  // pending: {
-  //   color: "#F5A623",
-  // },
+  amount: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#1E60D4",
+    marginTop: 4,
+  },
   statusRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     flexWrap: "wrap",
-    marginTop: 8,
+    //marginTop: 4,
   },
   iconButton: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 20,
-    justifyContent: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    //alignItems: "center",
+    //justifyContent: "center",
+  },
+
+  buttonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 14,
+  },
+  actionRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    marginTop: 12,
   },
   actionButtons: {
     flexDirection: "row",
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 80, // smaller gap between Approve and Reject
+    gap: 20,
   },
 
   modalOverlay: {
@@ -1137,7 +1133,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 4,
+    marginBottom: 3,
   },
 
   deptBadge: {
@@ -1145,6 +1141,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     paddingHorizontal: 10,
     borderRadius: 8,
+    marginBottom:4
   },
 
   deptText: {
@@ -1154,9 +1151,9 @@ const styles = StyleSheet.create({
   },
 
   statusChip: {
-    borderRadius: 20,
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 2,
+    borderRadius: 8,
     alignSelf: "flex-end",
     marginTop: -4,
     marginRight: -4,
@@ -1199,11 +1196,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     marginHorizontal: 4,
-  },
-
-  buttonText: {
-    color: "#fff",
-    fontWeight: "bold",
   },
 
   infoIconWrapper: {
@@ -1303,10 +1295,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   clientRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 2,
+    marginBottom: 12,
   },
 
   clientNameWrapper: {
@@ -1321,7 +1310,7 @@ const styles = StyleSheet.create({
   },
 
   timeText: {
-    fontSize: 11,
+    fontSize: 12,
     color: "#999",
     minWidth: 52, // ensure fixed space for consistent right alignment
     textAlign: "right",

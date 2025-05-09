@@ -154,7 +154,7 @@ export default function RequestDetailScreen() {
         await approveRequest(selectedRequest.id);
 
         Toast.show({ type: "success", text1: "Request approved!" });
-        await loadClientsAndChartData(); 
+        await loadClientsAndChartData();
       } else if (selectedAction === "reject") {
         await rejectRequest(selectedRequest.id, rejectionNote.trim());
         Toast.show({ type: "success", text1: "Request rejected!" });
@@ -355,26 +355,43 @@ export default function RequestDetailScreen() {
 
           {(localStatus === "Pending" || localStatus === "On hold") && (
             <View style={styles.statusRow}>
-              <View style={styles.actionButtons}>
-                <TouchableOpacity
-                  style={[styles.iconButton, { backgroundColor: "#2E7D32" }]}
-                  onPress={() => {
-                    setSelectedAction("accept");
-                    setShowConfirm(true);
-                  }}
-                >
-                  <Text style={styles.buttonText}>APPROVE</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.iconButton, { backgroundColor: "#C62828" }]}
-                  onPress={() => {
-                    setSelectedAction("reject");
-                    setShowConfirm(true);
-                  }}
-                >
-                  <Text style={styles.buttonText}>REJECT</Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                style={[
+                  styles.iconButton,
+                  {
+                    backgroundColor: "rgba(198, 40, 40, 0.1)",
+                    alignSelf: "flex-start",
+                  },
+                ]}
+                onPress={() => {
+                  setSelectedAction("reject");
+                  setShowConfirm(true);
+                }}
+              >
+                <Text style={[styles.buttonText, { color: "#C62828" }]}>
+                  REJECT
+                </Text>
+              </TouchableOpacity>
+
+              <View style={{ flex: 1 }} />
+
+              <TouchableOpacity
+                style={[
+                  styles.iconButton,
+                  {
+                    backgroundColor: "rgba(46, 125, 50, 0.1)",
+                    alignSelf: "flex-end",
+                  },
+                ]}
+                onPress={() => {
+                  setSelectedAction("accept");
+                  setShowConfirm(true);
+                }}
+              >
+                <Text style={[styles.buttonText, { color: "#2E7D32" }]}>
+                  APPROVE
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -474,18 +491,27 @@ export default function RequestDetailScreen() {
                     styles.confirmBtn,
                     {
                       backgroundColor:
-                        selectedAction === "accept" ? "#2E7D32" : "#C62828",
+                        selectedAction === "accept"
+                          ? "rgba(46, 125, 50, 0.1)"
+                          : "rgba(198, 40, 40, 0.1)",
                       opacity: isProcessing ? 0.6 : 1,
                     },
                   ]}
                   onPress={handleConfirmAction}
                 >
-                  <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                  <Text
+                    style={{
+                      color:
+                        selectedAction === "accept" ? "#2E7D32" : "#C62828",
+                      fontWeight: "bold",
+                      fontSize: 14,
+                    }}
+                  >
                     {isProcessing
                       ? "Processing..."
                       : selectedAction === "accept"
-                      ? "Approve"
-                      : "Reject"}
+                      ? "APPROVE"
+                      : "REJECT"}
                   </Text>
                 </TouchableOpacity>
 
@@ -494,7 +520,7 @@ export default function RequestDetailScreen() {
                   style={[
                     styles.confirmBtn,
                     {
-                      backgroundColor: "#999999",
+                      backgroundColor: "rgba(153, 153, 153, 0.1)",
                       opacity: isProcessing ? 0.6 : 1,
                     },
                   ]}
@@ -504,8 +530,10 @@ export default function RequestDetailScreen() {
                     setRejectionNote("");
                   }}
                 >
-                  <Text style={{ color: "#fff", fontWeight: "bold" }}>
-                    Cancel
+                  <Text
+                    style={{ color: "#666", fontWeight: "bold", fontSize: 14 }}
+                  >
+                    CANCEL
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -580,8 +608,8 @@ const styles = StyleSheet.create({
   },
   statusChip: {
     alignSelf: "flex-start",
-    borderRadius: 20,
-    paddingHorizontal: 12,
+    borderRadius: 8,
+    paddingHorizontal: 10,
     paddingVertical: 2,
     marginTop: 4,
   },
@@ -596,22 +624,14 @@ const styles = StyleSheet.create({
   chipOnHold: { backgroundColor: "#2196F3" },
   actionButtons: {
     flexDirection: "row",
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 80,
+    gap: 12,
   },
   iconButton: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 12,
-    justifyContent: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 8,
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    justifyContent: "center",
   },
   statusRow: {
     flexDirection: "row",
@@ -621,8 +641,8 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   buttonText: {
-    color: "#fff",
     fontWeight: "bold",
+    fontSize: 14,
   },
   modalOverlay: {
     flex: 1,
