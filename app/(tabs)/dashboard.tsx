@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Platform,
+  Modal,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as Print from "expo-print";
@@ -38,7 +39,7 @@ export default function DashboardScreen() {
   const insets = useSafeAreaInsets(); // ✅ Moved inside component
   const [logs, setLogs] = useState<Log[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [showPicker, setShowPicker] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const loadLogs = async () => {
     try {
@@ -85,8 +86,9 @@ export default function DashboardScreen() {
   const filteredLogs = useMemo(() => {
     return logs.filter((log) => {
       const logDate = new Date(log.timestamp).toDateString();
-      return selectedDate ? logDate === selectedDate.toDateString() : true; // ✅ Show all if no date selected
-    });
+      const effectiveDate = selectedDate || new Date(); // ✅ use today's date if none selected
+      return logDate === effectiveDate.toDateString();
+    });    
   }, [logs, selectedDate]);
 
   const handleExportPDF = async () => {
@@ -185,53 +187,135 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Date Picker Row */}
         <View style={styles.dateRow}>
-          <TouchableOpacity
-            onPress={() => setShowPicker(true)}
-            style={{ flexDirection: "row", alignItems: "center" }}
+  <TouchableOpacity
+    onPress={() => setShowDatePicker(true)}
+    style={{ flexDirection: "row", alignItems: "center" }}
+  >
+    <Ionicons name="calendar-outline" size={16} color="#1E1E4B" />
+    <Text style={[styles.dateFilterText, { marginLeft: 4 }]}>
+      {selectedDate
+        ? selectedDate.toLocaleDateString()
+        : new Date().toLocaleDateString()}
+    </Text>
+  </TouchableOpacity>
+</View>
+
+{selectedDate && (
+  <TouchableOpacity
+    onPress={() => setSelectedDate(null)}
+    style={{ marginBottom: 10 }}
+  >
+    <Text
+      style={{
+        textAlign: "center",
+        fontSize: 13,
+        color: "#999",
+        textDecorationLine: "underline",
+      }}
+    >
+      Clear Date Filter
+    </Text>
+  </TouchableOpacity>
+)}
+
+{showDatePicker && (
+  Platform.OS === "ios" ? (
+    <Modal
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowDatePicker(false)}
+    >
+      <TouchableOpacity
+        activeOpacity={1}
+        onPressOut={() => setShowDatePicker(false)}
+        style={{
+          flex: 1,
+          justifyContent: "flex-end",
+          backgroundColor: "rgba(0, 0, 0, 0.3)",
+        }}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          style={{
+            backgroundColor: "#fff",
+            padding: 16,
+            borderTopLeftRadius: 16,
+            borderTopRightRadius: 16,
+          }}
+        >
+          <DateTimePicker
+            value={selectedDate || new Date()}
+            mode="date"
+            display="spinner"
+            onChange={(event, date) => {
+              if (date) setSelectedDate(date);
+            }}
+            themeVariant="light"
+            style={{ backgroundColor: "#fff" }}
+          />
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              marginTop: 12,
+            }}
           >
-            <Ionicons name="calendar-outline" size={16} color="#1E1E4B" />
-            <Text style={[styles.dateFilterText, { marginLeft: 4 }]}>
-              {selectedDate
-                ? selectedDate.toLocaleDateString()
-                : new Date().toLocaleDateString()}
-            </Text>
-          </TouchableOpacity>
-        </View>
-        {selectedDate && (
-          <TouchableOpacity
-            onPress={() => setSelectedDate(null)}
-            style={{ marginBottom: 10 }}
-          >
-            <Text
+            <TouchableOpacity
+              onPress={() => setShowDatePicker(false)}
               style={{
-                textAlign: "center",
-                fontSize: 13,
-                color: "#999",
-                textDecorationLine: "underline",
+                flex: 1,
+                paddingVertical: 10,
+                borderRadius: 10,
+                backgroundColor: "#ccc",
+                alignItems: "center",
+                marginRight: 8,
               }}
             >
-              Clear Date Filter
-            </Text>
-          </TouchableOpacity>
-        )}
+              <Text style={{ color: "#000", fontWeight: "bold" }}>
+                Cancel
+              </Text>
+            </TouchableOpacity>
 
-        {showPicker && (
-          <DateTimePicker
-            value={selectedDate || new Date()} // ✅ fallback if null
-            mode="date"
-            display={Platform.OS === "ios" ? "inline" : "default"}
-            onChange={(_, date) => {
-              if (date) setSelectedDate(date);
-              setShowPicker(false);
-            }}
-          />
-        )}
+            <TouchableOpacity
+              onPress={() => setShowDatePicker(false)}
+              style={{
+                flex: 1,
+                paddingVertical: 10,
+                borderRadius: 10,
+                backgroundColor: "#1E1E4B",
+                alignItems: "center",
+                marginLeft: 8,
+              }}
+            >
+              <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                Done
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  ) : (
+    <DateTimePicker
+      value={selectedDate || new Date()}
+      mode="date"
+      display="default"
+      onChange={(event, date) => {
+        setShowDatePicker(false);
+        if (date) setSelectedDate(date);
+      }}
+    />
+  )
+)}
+
 
         {/* Scrollable Table */}
         <ScrollView
-          style={styles.scrollWrapper}
+          contentContainerStyle={[
+            //styles.scrollWrapper,
+            { paddingBottom: 10 + insets.bottom }
+          ]}
           showsVerticalScrollIndicator={false}
         >
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -371,7 +455,7 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     color: "#6B7280",
   },
-  scrollWrapper: {
-    paddingBottom: 100, // 👈 ensures content doesn't get covered
-  },
+  // scrollWrapper: {
+  //   paddingBottom: 150, // 👈 ensures content doesn't get covered
+  // },
 });
