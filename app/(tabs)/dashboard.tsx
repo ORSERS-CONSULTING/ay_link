@@ -66,9 +66,10 @@ export default function DashboardScreen() {
       setLogs(
         formatted.sort(
           (a, b) =>
-            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+            new Date(b.decisionTime).getTime() - new Date(a.decisionTime).getTime()
         )
       );
+      
     } catch {
       Toast.show({ type: "error", text1: "Failed to load logs." });
     }
@@ -85,28 +86,42 @@ export default function DashboardScreen() {
 
   const filteredLogs = useMemo(() => {
     return logs.filter((log) => {
-      const logDate = new Date(log.timestamp).toDateString();
+      const logDate = new Date(log.decisionTime).toDateString(); // ✅ uses decision date
       const effectiveDate = selectedDate || new Date(); // ✅ use today's date if none selected
       return logDate === effectiveDate.toDateString();
     });    
   }, [logs, selectedDate]);
 
   const handleExportPDF = async () => {
+    const formattedDate = selectedDate
+      ? new Date(selectedDate).toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "long",
+          year: "numeric",
+        })
+      : "All Dates";
+  
     const html = `
       <html>
         <head>
           <style>
-            body { font-family: Arial; padding: 20px; }
-            h1 { text-align: center; color: #1E1E4B; }
+            body {
+              font-family: Arial, sans-serif;
+              padding: 20px;
+            }
+            h1 {
+              text-align: center;
+              color: #1E1E4B;
+            }
             table {
               width: 100%;
               border-collapse: collapse;
+              margin-top: 20px;
               font-size: 12px;
-              margin-top: 16px;
             }
             th, td {
               border: 1px solid #ccc;
-              padding: 6px;
+              padding: 6px 8px;
               text-align: left;
               vertical-align: top;
             }
@@ -118,57 +133,82 @@ export default function DashboardScreen() {
             tr:nth-child(even) {
               background-color: #FAFAFA;
             }
+            .placeholder {
+              color: #999;
+              font-style: italic;
+            }
           </style>
         </head>
         <body>
-          <h1>Dashboard - ${
-            selectedDate
-              ? selectedDate.toLocaleDateString()
-              : new Date().toLocaleDateString()
-          }
-</h1>
+          <h1>Credit Approval Logs – ${formattedDate}</h1>
           <table>
-            <tr>
-              <th>Department</th>
-              <th>Client</th>
-              <th>Company Code</th>
-              <th>Requested</th>
-              <th>Reason</th>
-              <th>Status</th>
-              <th>Submitted</th>
-              <th>Decision Time</th>
-              <th>Approver</th>
-              <th>Rejection Note</th>
-            </tr>
-            ${filteredLogs
-              .map((log) => {
-                const submittedAt = new Date(log.timestamp).toLocaleString(
-                  "en-GB"
-                );
-                const decisionAt = log.decisionTime
-                  ? new Date(log.decisionTime).toLocaleString("en-GB")
-                  : "-";
-                return `
-                <tr>
-                  <td>${log.departmentName}</td>
-                  <td>${log.clientName}</td>
-                  <td>${log.companyCode}</td>
-                  <td>AED ${log.requestedAmount.toFixed(2)}</td>
-                  <td>${log.reason || "-"}</td>
-                  <td>${log.status}</td>
-                  <td>${submittedAt}</td>
-                  <td>${decisionAt}</td>
-                  <td>${log.approver || "-"}</td>
-                  <td>${log.rejectionNote || "-"}</td>
-                </tr>`;
-              })
-              .join("")}
+            <thead>
+              <tr>
+                <th>Department</th>
+                <th>Client</th>
+                <th>Company Code</th>
+                <th>Requested Amount</th>
+                <th>Reason</th>
+                <th>Status</th>
+                <th>Submitted At</th>
+                <th>Decision Time</th>
+                <th>Approver</th>
+                <th>Rejection Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredLogs
+                .map((log) => {
+                  const submittedAt = new Date(log.timestamp).toLocaleString("en-GB", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
+                  });
+  
+                  const decisionAt = log.decisionTime
+                    ? new Date(log.decisionTime).toLocaleString("en-GB", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: false,
+                      })
+                    : `<span class="placeholder">–</span>`;
+  
+                  return `
+                    <tr>
+                      <td>${log.departmentName || '<span class="placeholder">–</span>'}</td>
+                      <td>${log.clientName}</td>
+                      <td>${log.companyCode || '<span class="placeholder">–</span>'}</td>
+                      <td>AED ${log.requestedAmount.toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                      })}</td>
+                      <td>${log.reason || '<span class="placeholder">–</span>'}</td>
+                      <td>${log.status}</td>
+                      <td>${submittedAt}</td>
+                      <td>${decisionAt}</td>
+                      <td>${log.approver || '<span class="placeholder">–</span>'}</td>
+                      <td>${log.rejectionNote || '<span class="placeholder">–</span>'}</td>
+                    </tr>
+                  `;
+                })
+                .join("")}
+            </tbody>
           </table>
         </body>
       </html>
     `;
-    const { uri } = await Print.printToFileAsync({ html });
-    await Sharing.shareAsync(uri);
+  
+    const { uri } = await Print.printToFileAsync({
+      html,
+      base64: false,
+      //fileName: `credit_logs_${selectedDate?.toISOString().split("T")[0] || "all"}`
+    });
+        await Sharing.shareAsync(uri);
   };
 
   return (
@@ -346,39 +386,41 @@ export default function DashboardScreen() {
               ) : (
                 filteredLogs.map((log, index) => (
                   <View
-                    key={log.id}
-                    style={[
-                      styles.tableRow,
-                      {
-                        backgroundColor: index % 2 === 0 ? "#fff" : "#F9FAFB",
-                      },
-                    ]}
-                  >
-                    <Text style={styles.cell}>{log.departmentName}</Text>
-                    <Text
-                      style={styles.cell}
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                    >
-                      {log.clientName}
-                    </Text>
-                    <Text style={styles.cell}>{log.companyCode}</Text>
-                    <Text style={styles.cell}>
-                      AED {log.requestedAmount.toFixed(2)}
-                    </Text>
-                    <Text style={styles.cell}>{log.reason || "-"}</Text>
-                    <Text style={styles.cell}>{log.status}</Text>
-                    <Text style={styles.cell}>
-                      {new Date(log.timestamp).toLocaleString("en-GB")}
-                    </Text>
-                    <Text style={styles.cell}>
-                      {log.decisionTime
-                        ? new Date(log.decisionTime).toLocaleString("en-GB")
-                        : "-"}
-                    </Text>
-                    <Text style={styles.cell}>{log.approver || "-"}</Text>
-                    <Text style={styles.cell}>{log.rejectionNote || "-"}</Text>
-                  </View>
+  key={log.id}
+  style={[
+    styles.tableRow,
+    {
+      backgroundColor: index % 2 === 0 ? "#fff" : "#F9FAFB",
+    },
+  ]}
+>
+  <Text style={styles.cell}>{log.departmentName}</Text>
+  <Text style={styles.cell} numberOfLines={1} ellipsizeMode="tail">
+    {log.clientName}
+  </Text>
+  <Text style={styles.cell}>{log.companyCode}</Text>
+  <Text style={styles.cell}>
+    AED {log.requestedAmount.toFixed(2)}
+  </Text>
+  <Text style={styles.cell}>{log.reason || "-"}</Text>
+  <Text style={[
+  styles.cell,
+  { color: log.status === "Approved" ? "#2E7D32" : log.status === "Rejected" ? "#C62828" : "#F5A623" }
+]}>
+  {log.status}
+</Text>
+  <Text style={styles.cell}>
+    {new Date(log.timestamp).toLocaleString("en-GB")}
+  </Text>
+  <Text style={styles.cell}>
+    {log.decisionTime
+      ? new Date(log.decisionTime).toLocaleString("en-GB")
+      : "-"}
+  </Text>
+  <Text style={styles.cell}>{log.approver || "-"}</Text>
+  <Text style={styles.cell}>{log.rejectionNote || "-"}</Text>
+</View>
+
                 ))
               )}
             </View>

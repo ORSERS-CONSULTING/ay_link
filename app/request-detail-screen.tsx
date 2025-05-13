@@ -21,6 +21,7 @@ import {
   fetchClientRequests,
   fetchTransactionStats,
   rejectRequest,
+  sendBackRequest,
 } from "@/utils/api";
 import { useChartData } from "@/context/ChartDataContext";
 import { useClientRequests } from "@/context/ClientRequestContext";
@@ -45,6 +46,8 @@ export default function RequestDetailScreen() {
     invoice_count: number;
     transaction_count: number;
   } | null>(null);
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [additionalInfo, setAdditionalInfo] = useState("");
 
   useEffect(() => {
     const loadStats = async () => {
@@ -59,11 +62,6 @@ export default function RequestDetailScreen() {
     loadStats();
   }, [selectedRequest?.companyCode]);
 
-  useEffect(() => {
-    console.log("sssssssssssss", selectedRequest);
-    return () => setSelectedRequest(null);
-  }, []);
-
   if (!selectedRequest) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -77,7 +75,6 @@ export default function RequestDetailScreen() {
   const {
     clientName,
     companyCode,
-    currentBalance,
     departmentName,
     requestedAmount,
     status,
@@ -192,6 +189,35 @@ export default function RequestDetailScreen() {
     setShowConfirm(false);
     setSelectedAction("");
     setRejectionNote("");
+  };
+
+  const handleSendBack = async () => {
+    if (!selectedRequest || !additionalInfo.trim()) {
+      Toast.show({ type: "error", text1: "Please enter a message." });
+      return;
+    }
+
+    try {
+      await sendBackRequest(selectedRequest.id, additionalInfo.trim());
+
+      Toast.show({
+        type: "success",
+        text1: "Request sent back for more info!",
+      });
+
+      await loadClientsAndChartData();
+      setShowInfoModal(false);
+      setAdditionalInfo("");
+
+      // Delay resetting the selectedRequest to avoid conflicting renders
+      setTimeout(() => {
+        setSelectedRequest(null);
+        router.back(); // 👈 optionally navigate away after
+      }, 100);
+    } catch (error) {
+      console.error("Failed to send back request:", error);
+      Toast.show({ type: "error", text1: "Failed to send request back." });
+    }
   };
 
   const normalize = (text: string) =>
@@ -353,47 +379,57 @@ export default function RequestDetailScreen() {
             </>
           )}
 
-          {(localStatus === "Pending" || localStatus === "On hold") && (
-            <View style={styles.statusRow}>
-              <TouchableOpacity
-                style={[
-                  styles.iconButton,
-                  {
-                    backgroundColor: "rgba(198, 40, 40, 0.1)",
-                    alignSelf: "flex-start",
-                  },
-                ]}
-                onPress={() => {
-                  setSelectedAction("reject");
-                  setShowConfirm(true);
-                }}
-              >
-                <Text style={[styles.buttonText, { color: "#C62828" }]}>
-                  REJECT
-                </Text>
-              </TouchableOpacity>
+          {localStatus === "Pending" || localStatus === "On hold" ? (
+            <>
+              <View style={styles.divider} />
+              <View style={styles.statusRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.iconButton,
+                    { backgroundColor: "rgba(198, 40, 40, 0.1)" },
+                  ]}
+                  onPress={() => {
+                    setSelectedAction("reject");
+                    setShowConfirm(true);
+                  }}
+                >
+                  <Text style={[styles.buttonText, { color: "#C62828" }]}>
+                    REJECT
+                  </Text>
+                </TouchableOpacity>
 
-              <View style={{ flex: 1 }} />
+                <TouchableOpacity
+                  style={[
+                    styles.iconButton,
+                    { backgroundColor: "rgba(25, 118, 210, 0.1)" },
+                  ]}
+                  onPress={() => {
+                    setShowInfoModal(true);
+                  }}
+                >
+                  <Text style={[styles.buttonText, { color: "#1976D2" }]}>
+                    REQUEST INFO
+                  </Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[
-                  styles.iconButton,
-                  {
-                    backgroundColor: "rgba(46, 125, 50, 0.1)",
-                    alignSelf: "flex-end",
-                  },
-                ]}
-                onPress={() => {
-                  setSelectedAction("accept");
-                  setShowConfirm(true);
-                }}
-              >
-                <Text style={[styles.buttonText, { color: "#2E7D32" }]}>
-                  APPROVE
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
+                <TouchableOpacity
+                  style={[
+                    styles.iconButton,
+                    { backgroundColor: "rgba(46, 125, 50, 0.1)" },
+                  ]}
+                  onPress={() => {
+                    setSelectedAction("accept");
+                    setShowConfirm(true);
+                  }}
+                >
+                  <Text style={[styles.buttonText, { color: "#2E7D32" }]}>
+                    APPROVE
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.divider} />
+            </>
+          ) : null}
 
           {/* Stats */}
           <View style={styles.summaryGrid}>
@@ -540,6 +576,65 @@ export default function RequestDetailScreen() {
             </View>
           </View>
         </Modal>
+        <Modal
+          transparent
+          visible={showInfoModal}
+          animationType="fade"
+          onRequestClose={() => setShowInfoModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.confirmModal}>
+              <Text style={styles.confirmText}>
+                Enter additional info required for {clientName}:
+              </Text>
+              <TextInput
+                placeholder="E.g. Upload recent documents"
+                placeholderTextColor="#999"
+                value={additionalInfo}
+                onChangeText={setAdditionalInfo}
+                multiline
+                style={styles.rejectionInput}
+              />
+
+              <View style={styles.confirmActions}>
+                <TouchableOpacity
+                  onPress={handleSendBack}
+                  style={[
+                    styles.confirmBtn,
+                    { backgroundColor: "rgba(25, 118, 210, 0.1)" },
+                  ]}
+                >
+                  <Text
+                    style={{
+                      color: "#1976D2",
+                      fontWeight: "bold",
+                      fontSize: 14,
+                    }}
+                  >
+                    Send
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowInfoModal(false);
+                    setAdditionalInfo("");
+                  }}
+                  style={[
+                    styles.confirmBtn,
+                    { backgroundColor: "rgba(153, 153, 153, 0.1)" },
+                  ]}
+                >
+                  <Text
+                    style={{ color: "#666", fontWeight: "bold", fontSize: 14 }}
+                  >
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
 
       <Toast />
@@ -628,10 +723,11 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     paddingVertical: 8,
-    paddingHorizontal: 20,
+    paddingHorizontal: 14,
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
+    //marginHorizontal:4
   },
   statusRow: {
     flexDirection: "row",
@@ -639,6 +735,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     flexWrap: "wrap",
     marginTop: 16,
+    //gap:2
   },
   buttonText: {
     fontWeight: "bold",
@@ -719,5 +816,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#666",
     marginTop: 2,
+  },
+  divider: {
+    height: 1.5,
+    backgroundColor: "#E0E0E0",
+    marginTop: 24,
+    marginBottom: 4,
+    borderRadius: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
   },
 });

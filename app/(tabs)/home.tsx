@@ -504,29 +504,29 @@ export default function HomeScreen() {
                 style={styles.rejectionInput}
               />
 
-              <View style={styles.confirmActions}>
-                <TouchableOpacity
-                  onPress={handleSendBack}
-                  style={[styles.confirmBtn, { backgroundColor: "#1E1E4B" }]}
-                >
-                  <Text style={{ color: "#fff", fontWeight: "bold" }}>
-                    Send
-                  </Text>
-                </TouchableOpacity>
+<View style={styles.confirmActions}>
+  <TouchableOpacity
+    onPress={handleSendBack}
+    style={[styles.confirmBtn, { backgroundColor: "rgba(25, 118, 210, 0.1)" }]}
+  >
+    <Text style={{ color: "#1976D2", fontWeight: "bold", fontSize: 14 }}>
+      Send
+    </Text>
+  </TouchableOpacity>
 
-                <TouchableOpacity
-                  onPress={() => {
-                    setShowInfoModal(false);
-                    setAdditionalInfo("");
-                    setSelectedClient(null);
-                  }}
-                  style={[styles.confirmBtn, { backgroundColor: "#999999" }]}
-                >
-                  <Text style={{ color: "#fff", fontWeight: "bold" }}>
-                    Cancel
-                  </Text>
-                </TouchableOpacity>
-              </View>
+  <TouchableOpacity
+    onPress={() => {
+      setShowInfoModal(false);
+      setAdditionalInfo("");
+    }}
+    style={[styles.confirmBtn, { backgroundColor: "rgba(153, 153, 153, 0.1)" }]}
+  >
+    <Text style={{ color: "#666", fontWeight: "bold", fontSize: 14 }}>
+      Cancel
+    </Text>
+  </TouchableOpacity>
+</View>
+
             </View>
           </View>
         </Modal>

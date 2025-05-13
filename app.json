@@ -13,8 +13,10 @@
       "bundleIdentifier": "com.tenioduola.aylink",
       "buildNumber": "2",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
-      }
+    "UIStatusBarStyle": "UIStatusBarStyleDarkContent",
+    "UIViewControllerBasedStatusBarAppearance": false,
+    "ITSAppUsesNonExemptEncryption": false
+  }
     },
     "android": {
       "adaptiveIcon": {
@@ -31,6 +33,11 @@
         "android.permission.USE_FINGERPRINT"
       ]
     },
+    "androidStatusBar": {
+  "barStyle": "dark-content",
+  "backgroundColor": "#ffffff",
+  "translucent": false
+},
     "web": {
       "bundler": "metro",
       "output": "static",

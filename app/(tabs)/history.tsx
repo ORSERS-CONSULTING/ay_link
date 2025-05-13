@@ -118,14 +118,19 @@ export default function HistoryScreen() {
         .toLowerCase()
         .includes(search.toLowerCase());
       const statusMatch = filter === "All" || log.status === filter;
-      const dateMatch = selectedDate
-        ? new Date(log.timestamp).toDateString() ===
-          new Date(selectedDate).toDateString()
-        : true;
+  
+      const logDate = new Date(log.decisionTime).toDateString();
+      const selected = selectedDate
+        ? new Date(selectedDate).toDateString()
+        : new Date().toDateString();
+  
+      const dateMatch = logDate === selected;
+  
       return matchesSearch && statusMatch && dateMatch;
     });
   }, [logs, search, filter, selectedDate]);
-
+  
+  
   const formatSubmittedTime = (timestamp: string) => {
     const now = new Date();
     const time = new Date(timestamp);
@@ -142,112 +147,112 @@ export default function HistoryScreen() {
     }
   };
 
-  const handleExportPDF = async () => {
-    const html = `
-      <html>
-        <head>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              padding: 20px;
-            }
-            h1 {
-              text-align: center;
-              color: #1E1E4B;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-top: 20px;
-              font-size: 12px;
-            }
-            th, td {
-              border: 1px solid #ccc;
-              padding: 6px 8px;
-              text-align: left;
-              vertical-align: top;
-            }
-            th {
-              background-color: #F0F4F8;
-              color: #1E1E4B;
-              font-weight: bold;
-            }
-            tr:nth-child(even) {
-              background-color: #FAFAFA;
-            }
-            .placeholder {
-              color: #999;
-              font-style: italic;
-            }
-          </style>
-        </head>
-        <body>
-          <h1>Credit Approval Logs</h1>
-          <table>
-            <thead>
-              <tr>
-                <th>Department</th>
-                <th>Client</th>
-                <th>Company Code</th>
-                <th>Requested Amount</th>
-                <th>Reason</th>
-                <th>Status</th>
-                <th>Submitted At</th>
-                <th>Decision Time</th>
-                <th>Approver</th>
-                <th>Rejection Note</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${filteredLogs
-                .map((log) => {
-                  const submittedAt = new Date(log.timestamp).toLocaleString("en-GB", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    hour12: false,
-                  });
+  // const handleExportPDF = async () => {
+  //   const html = `
+  //     <html>
+  //       <head>
+  //         <style>
+  //           body {
+  //             font-family: Arial, sans-serif;
+  //             padding: 20px;
+  //           }
+  //           h1 {
+  //             text-align: center;
+  //             color: #1E1E4B;
+  //           }
+  //           table {
+  //             width: 100%;
+  //             border-collapse: collapse;
+  //             margin-top: 20px;
+  //             font-size: 12px;
+  //           }
+  //           th, td {
+  //             border: 1px solid #ccc;
+  //             padding: 6px 8px;
+  //             text-align: left;
+  //             vertical-align: top;
+  //           }
+  //           th {
+  //             background-color: #F0F4F8;
+  //             color: #1E1E4B;
+  //             font-weight: bold;
+  //           }
+  //           tr:nth-child(even) {
+  //             background-color: #FAFAFA;
+  //           }
+  //           .placeholder {
+  //             color: #999;
+  //             font-style: italic;
+  //           }
+  //         </style>
+  //       </head>
+  //       <body>
+  //         <h1>Credit Approval Logs</h1>
+  //         <table>
+  //           <thead>
+  //             <tr>
+  //               <th>Department</th>
+  //               <th>Client</th>
+  //               <th>Company Code</th>
+  //               <th>Requested Amount</th>
+  //               <th>Reason</th>
+  //               <th>Status</th>
+  //               <th>Submitted At</th>
+  //               <th>Decision Time</th>
+  //               <th>Approver</th>
+  //               <th>Rejection Note</th>
+  //             </tr>
+  //           </thead>
+  //           <tbody>
+  //             ${filteredLogs
+  //               .map((log) => {
+  //                 const submittedAt = new Date(log.timestamp).toLocaleString("en-GB", {
+  //                   day: "2-digit",
+  //                   month: "2-digit",
+  //                   year: "numeric",
+  //                   hour: "2-digit",
+  //                   minute: "2-digit",
+  //                   hour12: false,
+  //                 });
   
-                  const decisionAt = log.decisionTime
-                    ? new Date(log.decisionTime).toLocaleString("en-GB", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: false,
-                      })
-                    : `<span class="placeholder">–</span>`;
+  //                 const decisionAt = log.decisionTime
+  //                   ? new Date(log.decisionTime).toLocaleString("en-GB", {
+  //                       day: "2-digit",
+  //                       month: "2-digit",
+  //                       year: "numeric",
+  //                       hour: "2-digit",
+  //                       minute: "2-digit",
+  //                       hour12: false,
+  //                     })
+  //                   : `<span class="placeholder">–</span>`;
   
-                  return `
-                    <tr>
-                      <td>${log.departmentName || '<span class="placeholder">–</span>'}</td>
-                      <td>${log.clientName}</td>
-                      <td>${log.companyCode || '<span class="placeholder">–</span>'}</td>
-                      <td>AED ${log.requestedAmount.toLocaleString("en-US", {
-                        minimumFractionDigits: 2,
-                      })}</td>
-                      <td>${log.reason || '<span class="placeholder">–</span>'}</td>
-                      <td>${log.status}</td>
-                      <td>${submittedAt}</td>
-                      <td>${decisionAt}</td>
-                      <td>${log.approver || '<span class="placeholder">–</span>'}</td>
-                      <td>${log.rejectionNote || '<span class="placeholder">–</span>'}</td>
-                    </tr>
-                  `;
-                })
-                .join("")}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `;
+  //                 return `
+  //                   <tr>
+  //                     <td>${log.departmentName || '<span class="placeholder">–</span>'}</td>
+  //                     <td>${log.clientName}</td>
+  //                     <td>${log.companyCode || '<span class="placeholder">–</span>'}</td>
+  //                     <td>AED ${log.requestedAmount.toLocaleString("en-US", {
+  //                       minimumFractionDigits: 2,
+  //                     })}</td>
+  //                     <td>${log.reason || '<span class="placeholder">–</span>'}</td>
+  //                     <td>${log.status}</td>
+  //                     <td>${submittedAt}</td>
+  //                     <td>${decisionAt}</td>
+  //                     <td>${log.approver || '<span class="placeholder">–</span>'}</td>
+  //                     <td>${log.rejectionNote || '<span class="placeholder">–</span>'}</td>
+  //                   </tr>
+  //                 `;
+  //               })
+  //               .join("")}
+  //           </tbody>
+  //         </table>
+  //       </body>
+  //     </html>
+  //   `;
   
-    const { uri } = await Print.printToFileAsync({ html });
-    await Sharing.shareAsync(uri);
-  };
+  //   const { uri } = await Print.printToFileAsync({ html });
+  //   await Sharing.shareAsync(uri);
+  // };
   
   
 
@@ -275,7 +280,7 @@ export default function HistoryScreen() {
                 {item.clientName}
               </Text>
               <Text style={styles.timeText}>
-                {formatSubmittedTime(item.timestamp)}
+                {formatSubmittedTime(item.decisionTime)}
               </Text>
             </View>
             <Text style={styles.label}>
@@ -475,14 +480,14 @@ export default function HistoryScreen() {
               />
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={handleExportPDF}>
+            {/* <TouchableOpacity onPress={handleExportPDF}>
               <Ionicons
                 name="download-outline"
                 size={22}
                 color="#1E1E4B"
                 style={{ marginLeft: 12 }}
               />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
         </View>
 

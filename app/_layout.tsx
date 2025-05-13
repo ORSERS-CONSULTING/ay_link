@@ -84,7 +84,7 @@ function RootLayoutContent() {
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="request-detail-screen" options={{ headerShown: false }} />
       </Stack>
-      <StatusBar style="auto" />
+      <StatusBar style={colorScheme === "dark" ? "light" : "dark"} backgroundColor="#F5F5F5" />
     </ThemeProvider>
   );
 }
