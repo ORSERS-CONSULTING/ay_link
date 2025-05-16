@@ -19,6 +19,8 @@ import {
 import { fetchClientRequests } from "@/utils/api";
 import Toast from "react-native-toast-message";
 import { useFocusEffect } from "@react-navigation/native";
+import * as ScreenOrientation from "expo-screen-orientation";
+import { useWindowDimensions } from "react-native";
 
 type Log = {
   reason: string;
@@ -36,10 +38,14 @@ type Log = {
 };
 
 export default function DashboardScreen() {
-  const insets = useSafeAreaInsets(); // ✅ Moved inside component
+  const insets = useSafeAreaInsets(); 
   const [logs, setLogs] = useState<Log[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const { width } = useWindowDimensions();
+  const isLandscape = width > 700;
+  const columnWidth = isLandscape ? 160 : 130;
 
   const loadLogs = async () => {
     try {
@@ -66,10 +72,10 @@ export default function DashboardScreen() {
       setLogs(
         formatted.sort(
           (a, b) =>
-            new Date(b.decisionTime).getTime() - new Date(a.decisionTime).getTime()
+            new Date(b.decisionTime).getTime() -
+            new Date(a.decisionTime).getTime()
         )
       );
-      
     } catch {
       Toast.show({ type: "error", text1: "Failed to load logs." });
     }
@@ -81,6 +87,18 @@ export default function DashboardScreen() {
     }, [])
   );
 
+  useEffect(() => {
+    // Allow both landscape and portrait for this screen
+    ScreenOrientation.unlockAsync();
+
+    return () => {
+      // Lock back to portrait when leaving
+      ScreenOrientation.lockAsync(
+        ScreenOrientation.OrientationLock.PORTRAIT_UP
+      );
+    };
+  }, []);
+
   const capitalize = (text: string | undefined | null) =>
     text ? text.charAt(0).toUpperCase() + text.slice(1).toLowerCase() : "";
 
@@ -89,7 +107,7 @@ export default function DashboardScreen() {
       const logDate = new Date(log.decisionTime).toDateString(); // ✅ uses decision date
       const effectiveDate = selectedDate || new Date(); // ✅ use today's date if none selected
       return logDate === effectiveDate.toDateString();
-    });    
+    });
   }, [logs, selectedDate]);
 
   const handleExportPDF = async () => {
@@ -100,7 +118,7 @@ export default function DashboardScreen() {
           year: "numeric",
         })
       : "All Dates";
-  
+
     const html = `
       <html>
         <head>
@@ -159,15 +177,18 @@ export default function DashboardScreen() {
             <tbody>
               ${filteredLogs
                 .map((log) => {
-                  const submittedAt = new Date(log.timestamp).toLocaleString("en-GB", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    hour12: false,
-                  });
-  
+                  const submittedAt = new Date(log.timestamp).toLocaleString(
+                    "en-GB",
+                    {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: false,
+                    }
+                  );
+
                   const decisionAt = log.decisionTime
                     ? new Date(log.decisionTime).toLocaleString("en-GB", {
                         day: "2-digit",
@@ -178,21 +199,33 @@ export default function DashboardScreen() {
                         hour12: false,
                       })
                     : `<span class="placeholder">–</span>`;
-  
+
                   return `
                     <tr>
-                      <td>${log.departmentName || '<span class="placeholder">–</span>'}</td>
+                      <td>${
+                        log.departmentName ||
+                        '<span class="placeholder">–</span>'
+                      }</td>
                       <td>${log.clientName}</td>
-                      <td>${log.companyCode || '<span class="placeholder">–</span>'}</td>
+                      <td>${
+                        log.companyCode || '<span class="placeholder">–</span>'
+                      }</td>
                       <td>AED ${log.requestedAmount.toLocaleString("en-US", {
                         minimumFractionDigits: 2,
                       })}</td>
-                      <td>${log.reason || '<span class="placeholder">–</span>'}</td>
+                      <td>${
+                        log.reason || '<span class="placeholder">–</span>'
+                      }</td>
                       <td>${log.status}</td>
                       <td>${submittedAt}</td>
                       <td>${decisionAt}</td>
-                      <td>${log.approver || '<span class="placeholder">–</span>'}</td>
-                      <td>${log.rejectionNote || '<span class="placeholder">–</span>'}</td>
+                      <td>${
+                        log.approver || '<span class="placeholder">–</span>'
+                      }</td>
+                      <td>${
+                        log.rejectionNote ||
+                        '<span class="placeholder">–</span>'
+                      }</td>
                     </tr>
                   `;
                 })
@@ -202,13 +235,13 @@ export default function DashboardScreen() {
         </body>
       </html>
     `;
-  
+
     const { uri } = await Print.printToFileAsync({
       html,
       base64: false,
       //fileName: `credit_logs_${selectedDate?.toISOString().split("T")[0] || "all"}`
     });
-        await Sharing.shareAsync(uri);
+    await Sharing.shareAsync(uri);
   };
 
   return (
@@ -228,133 +261,131 @@ export default function DashboardScreen() {
         </View>
 
         <View style={styles.dateRow}>
-  <TouchableOpacity
-    onPress={() => setShowDatePicker(true)}
-    style={{ flexDirection: "row", alignItems: "center" }}
-  >
-    <Ionicons name="calendar-outline" size={16} color="#1E1E4B" />
-    <Text style={[styles.dateFilterText, { marginLeft: 4 }]}>
-      {selectedDate
-        ? selectedDate.toLocaleDateString()
-        : new Date().toLocaleDateString()}
-    </Text>
-  </TouchableOpacity>
-</View>
-
-{selectedDate && (
-  <TouchableOpacity
-    onPress={() => setSelectedDate(null)}
-    style={{ marginBottom: 10 }}
-  >
-    <Text
-      style={{
-        textAlign: "center",
-        fontSize: 13,
-        color: "#999",
-        textDecorationLine: "underline",
-      }}
-    >
-      Clear Date Filter
-    </Text>
-  </TouchableOpacity>
-)}
-
-{showDatePicker && (
-  Platform.OS === "ios" ? (
-    <Modal
-      transparent
-      animationType="fade"
-      onRequestClose={() => setShowDatePicker(false)}
-    >
-      <TouchableOpacity
-        activeOpacity={1}
-        onPressOut={() => setShowDatePicker(false)}
-        style={{
-          flex: 1,
-          justifyContent: "flex-end",
-          backgroundColor: "rgba(0, 0, 0, 0.3)",
-        }}
-      >
-        <TouchableOpacity
-          activeOpacity={1}
-          style={{
-            backgroundColor: "#fff",
-            padding: 16,
-            borderTopLeftRadius: 16,
-            borderTopRightRadius: 16,
-          }}
-        >
-          <DateTimePicker
-            value={selectedDate || new Date()}
-            mode="date"
-            display="spinner"
-            onChange={(event, date) => {
-              if (date) setSelectedDate(date);
-            }}
-            themeVariant="light"
-            style={{ backgroundColor: "#fff" }}
-          />
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              marginTop: 12,
-            }}
+          <TouchableOpacity
+            onPress={() => setShowDatePicker(true)}
+            style={{ flexDirection: "row", alignItems: "center" }}
           >
-            <TouchableOpacity
-              onPress={() => setShowDatePicker(false)}
+            <Ionicons name="calendar-outline" size={16} color="#1E1E4B" />
+            <Text style={[styles.dateFilterText, { marginLeft: 4 }]}>
+              {selectedDate
+                ? selectedDate.toLocaleDateString()
+                : new Date().toLocaleDateString()}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {selectedDate && (
+          <TouchableOpacity
+            onPress={() => setSelectedDate(null)}
+            style={{ marginBottom: 10 }}
+          >
+            <Text
               style={{
-                flex: 1,
-                paddingVertical: 10,
-                borderRadius: 10,
-                backgroundColor: "#ccc",
-                alignItems: "center",
-                marginRight: 8,
+                textAlign: "center",
+                fontSize: 13,
+                color: "#999",
+                textDecorationLine: "underline",
               }}
             >
-              <Text style={{ color: "#000", fontWeight: "bold" }}>
-                Cancel
-              </Text>
-            </TouchableOpacity>
+              Clear Date Filter
+            </Text>
+          </TouchableOpacity>
+        )}
 
-            <TouchableOpacity
-              onPress={() => setShowDatePicker(false)}
-              style={{
-                flex: 1,
-                paddingVertical: 10,
-                borderRadius: 10,
-                backgroundColor: "#1E1E4B",
-                alignItems: "center",
-                marginLeft: 8,
-              }}
+        {showDatePicker &&
+          (Platform.OS === "ios" ? (
+            <Modal
+              transparent
+              animationType="fade"
+              onRequestClose={() => setShowDatePicker(false)}
             >
-              <Text style={{ color: "#fff", fontWeight: "bold" }}>
-                Done
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </TouchableOpacity>
-    </Modal>
-  ) : (
-    <DateTimePicker
-      value={selectedDate || new Date()}
-      mode="date"
-      display="default"
-      onChange={(event, date) => {
-        setShowDatePicker(false);
-        if (date) setSelectedDate(date);
-      }}
-    />
-  )
-)}
+              <TouchableOpacity
+                activeOpacity={1}
+                onPressOut={() => setShowDatePicker(false)}
+                style={{
+                  flex: 1,
+                  justifyContent: "flex-end",
+                  backgroundColor: "rgba(0, 0, 0, 0.3)",
+                }}
+              >
+                <TouchableOpacity
+                  activeOpacity={1}
+                  style={{
+                    backgroundColor: "#fff",
+                    padding: 16,
+                    borderTopLeftRadius: 16,
+                    borderTopRightRadius: 16,
+                  }}
+                >
+                  <DateTimePicker
+                    value={selectedDate || new Date()}
+                    mode="date"
+                    display="spinner"
+                    onChange={(event, date) => {
+                      if (date) setSelectedDate(date);
+                    }}
+                    themeVariant="light"
+                    style={{ backgroundColor: "#fff" }}
+                  />
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      marginTop: 12,
+                    }}
+                  >
+                    <TouchableOpacity
+                      onPress={() => setShowDatePicker(false)}
+                      style={{
+                        flex: 1,
+                        paddingVertical: 10,
+                        borderRadius: 10,
+                        backgroundColor: "#ccc",
+                        alignItems: "center",
+                        marginRight: 8,
+                      }}
+                    >
+                      <Text style={{ color: "#000", fontWeight: "bold" }}>
+                        Cancel
+                      </Text>
+                    </TouchableOpacity>
 
+                    <TouchableOpacity
+                      onPress={() => setShowDatePicker(false)}
+                      style={{
+                        flex: 1,
+                        paddingVertical: 10,
+                        borderRadius: 10,
+                        backgroundColor: "#1E1E4B",
+                        alignItems: "center",
+                        marginLeft: 8,
+                      }}
+                    >
+                      <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                        Done
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </TouchableOpacity>
+              </TouchableOpacity>
+            </Modal>
+          ) : (
+            <DateTimePicker
+              value={selectedDate || new Date()}
+              mode="date"
+              display="default"
+              onChange={(event, date) => {
+                setShowDatePicker(false);
+                if (date) setSelectedDate(date);
+              }}
+            />
+          ))}
 
         {/* Scrollable Table */}
         <ScrollView
           contentContainerStyle={[
             //styles.scrollWrapper,
-            { paddingBottom: 10 + insets.bottom }
+            { paddingBottom: 10 + insets.bottom },
           ]}
           showsVerticalScrollIndicator={false}
         >
@@ -374,7 +405,10 @@ export default function DashboardScreen() {
                   "Approver",
                   "Rejection Note",
                 ].map((col) => (
-                  <Text key={col} style={styles.headerCell}>
+                  <Text
+                    key={col}
+                    style={[styles.headerCell, { width: columnWidth }]}
+                  >
                     {col}
                   </Text>
                 ))}
@@ -386,41 +420,63 @@ export default function DashboardScreen() {
               ) : (
                 filteredLogs.map((log, index) => (
                   <View
-  key={log.id}
-  style={[
-    styles.tableRow,
-    {
-      backgroundColor: index % 2 === 0 ? "#fff" : "#F9FAFB",
-    },
-  ]}
->
-  <Text style={styles.cell}>{log.departmentName}</Text>
-  <Text style={styles.cell} numberOfLines={1} ellipsizeMode="tail">
-    {log.clientName}
-  </Text>
-  <Text style={styles.cell}>{log.companyCode}</Text>
-  <Text style={styles.cell}>
-    AED {log.requestedAmount.toFixed(2)}
-  </Text>
-  <Text style={styles.cell}>{log.reason || "-"}</Text>
-  <Text style={[
-  styles.cell,
-  { color: log.status === "Approved" ? "#2E7D32" : log.status === "Rejected" ? "#C62828" : "#F5A623" }
-]}>
-  {log.status}
-</Text>
-  <Text style={styles.cell}>
-    {new Date(log.timestamp).toLocaleString("en-GB")}
-  </Text>
-  <Text style={styles.cell}>
-    {log.decisionTime
-      ? new Date(log.decisionTime).toLocaleString("en-GB")
-      : "-"}
-  </Text>
-  <Text style={styles.cell}>{log.approver || "-"}</Text>
-  <Text style={styles.cell}>{log.rejectionNote || "-"}</Text>
-</View>
-
+                    key={log.id}
+                    style={[
+                      styles.tableRow,
+                      {
+                        backgroundColor: index % 2 === 0 ? "#fff" : "#F9FAFB",
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.cell, { width: columnWidth }]}>
+                      {log.departmentName}
+                    </Text>
+                    <Text
+                      style={[styles.cell, { width: columnWidth }]}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      {log.clientName}
+                    </Text>
+                    <Text style={[styles.cell, { width: columnWidth }]}>
+                      {log.companyCode}
+                    </Text>
+                    <Text style={[styles.cell, { width: columnWidth }]}>
+                      AED {log.requestedAmount.toFixed(2)}
+                    </Text>
+                    <Text style={[styles.cell, { width: columnWidth }]}>
+                      {log.reason || "-"}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.cell,
+                        {
+                          color:
+                            log.status === "Approved"
+                              ? "#2E7D32"
+                              : log.status === "Rejected"
+                              ? "#C62828"
+                              : "#F5A623",
+                        },
+                      ]}
+                    >
+                      {log.status}
+                    </Text>
+                    <Text style={[styles.cell, { width: columnWidth }]}>
+                      {new Date(log.timestamp).toLocaleString("en-GB")}
+                    </Text>
+                    <Text style={[styles.cell, { width: columnWidth }]}>
+                      {log.decisionTime
+                        ? new Date(log.decisionTime).toLocaleString("en-GB")
+                        : "-"}
+                    </Text>
+                    <Text style={[styles.cell, { width: columnWidth }]}>
+                      {log.approver || "-"}
+                    </Text>
+                    <Text style={[styles.cell, { width: columnWidth }]}>
+                      {log.rejectionNote || "-"}
+                    </Text>
+                  </View>
                 ))
               )}
             </View>
@@ -473,7 +529,6 @@ const styles = StyleSheet.create({
     borderColor: "#E0E0E0", // 👈 new
   },
   headerCell: {
-    width: 130,
     fontWeight: "bold",
     fontSize: 13,
     paddingHorizontal: 6,

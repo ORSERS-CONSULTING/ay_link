@@ -21,7 +21,9 @@ import { ChartDataProvider } from "@/context/ChartDataContext";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { SelectedRequestProvider } from "@/context/SelectedRequestContext"; // ✅ import it
 import { ClientRequestProvider } from "@/context/ClientRequestContext";
+import Constants from "expo-constants";
 
+const token = Constants.expoConfig?.extra?.API_SECRET;
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -46,13 +48,18 @@ function RootLayoutContent() {
 
   useEffect(() => {
     if (!expoPushToken) return;
-
+    // const token = "MY_SECRET_KEY";
     const registerToken = async () => {
-      const url = `https://yawrhzry16j0fw1-adtgsw3okapc1zpw.adb.me-dubai-1.oraclecloudapps.com/ords/aly_sandbox/credit_notify_api/register/?expo_token=${encodeURIComponent(
+      const url = `https://p7erb4tc3lzuycgznzjfbcxsiy.apigateway.me-dubai-1.oci.customer-oci.com/main/register?expo_token=${encodeURIComponent(
         expoPushToken
       )}`;
       try {
-        const response = await fetch(url, { method: "POST" });
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "X-Api-Key": `${token}`,
+          },
+        });
         if (response.ok) {
           console.log("✅ Token registered successfully with Oracle");
         } else if ([409, 500, 555].includes(response.status)) {
@@ -82,9 +89,15 @@ function RootLayoutContent() {
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="login" options={{ headerShown: false }} />
-        <Stack.Screen name="request-detail-screen" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="request-detail-screen"
+          options={{ headerShown: false }}
+        />
       </Stack>
-      <StatusBar style={colorScheme === "dark" ? "light" : "dark"} backgroundColor="#F5F5F5" />
+      <StatusBar
+        style={colorScheme === "dark" ? "light" : "dark"}
+        backgroundColor="#F5F5F5"
+      />
     </ThemeProvider>
   );
 }
@@ -92,15 +105,15 @@ function RootLayoutContent() {
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-    <NotificationProvider>
-      <ClientRequestProvider>
-      <ChartDataProvider>
-      <SelectedRequestProvider> 
-            <RootLayoutContent />
-          </SelectedRequestProvider>
-      </ChartDataProvider>
-      </ClientRequestProvider>
-    </NotificationProvider>
+      <NotificationProvider>
+        <ClientRequestProvider>
+          <ChartDataProvider>
+            <SelectedRequestProvider>
+              <RootLayoutContent />
+            </SelectedRequestProvider>
+          </ChartDataProvider>
+        </ClientRequestProvider>
+      </NotificationProvider>
     </SafeAreaProvider>
   );
 }

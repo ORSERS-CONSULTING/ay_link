@@ -1,11 +1,21 @@
-import { Timestamp } from "react-native-reanimated/lib/typescript/commonTypes";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
+
+const token = Constants.expoConfig?.extra?.API_SECRET;
 
 const BASE_URL =
-  "https://yawrhzry16j0fw1-adtgsw3okapc1zpw.adb.me-dubai-1.oraclecloudapps.com/ords/aly_sandbox/credit_notify_api";
+  "https://p7erb4tc3lzuycgznzjfbcxsiy.apigateway.me-dubai-1.oci.customer-oci.com/main";
+
+  console.log("🔐 API TOKEN AT RUNTIME:", token);
+console.log("🌐 BASE_URL AT RUNTIME:", BASE_URL);
 
 export const fetchClientRequests = async () => {
-  const res = await fetch(`${BASE_URL}/requests/`);
+  //console.log(token, "token");
+  const res = await fetch(`${BASE_URL}/requests`, {
+    headers: {
+      "X-Api-Key": `${token}`,
+    },
+  });
   if (!res.ok) {
     throw new Error("Failed to fetch client requests");
   }
@@ -26,13 +36,18 @@ export const fetchClientRequests = async () => {
 
 export async function approveRequest(requestId: string) {
   const approver = await AsyncStorage.getItem("email");
-  const url = `${BASE_URL}/approve/?request_id=${requestId}&approver_name=${encodeURIComponent(
+  const url = `${BASE_URL}/approve?request_id=${requestId}&approver_name=${encodeURIComponent(
     approver || "unknown"
   )}`;
 
   console.log("📤 Sending APPROVE:", { requestId, url });
 
-  const res = await fetch(url, { method: "POST" });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "X-Api-Key": `${token}`,
+    },
+  });
 
   if (!res.ok) {
     const errorText = await res.text();
@@ -50,12 +65,17 @@ export async function approveRequest(requestId: string) {
 
 export async function rejectRequest(requestId: string, comment: string) {
   const approver = await AsyncStorage.getItem("email");
-  const url = `${BASE_URL}/reject/?request_id=${requestId}&rejection_comment=${encodeURIComponent(
+  const url = `${BASE_URL}/reject?request_id=${requestId}&rejection_comment=${encodeURIComponent(
     comment
   )}&approver_name=${encodeURIComponent(approver || "unknown")}`;
   console.log("📤 Sending REJECT:", { requestId, url });
 
-  const res = await fetch(url, { method: "POST" });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "X-Api-Key": `${token}`,
+    },
+  });
 
   if (!res.ok) {
     const errorText = await res.text();
@@ -75,7 +95,12 @@ export async function sendBackRequest(requestId: string, remarks: string) {
   const url = `${BASE_URL}/sendBack?request_id=${requestId}&returned_remarks=${encodeURIComponent(
     remarks
   )}`;
-  const res = await fetch(url, { method: "POST" });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "X-Api-Key": `${token}`,
+    },
+  });
 
   if (!res.ok) {
     const errorText = await res.text();
@@ -92,10 +117,14 @@ export async function sendBackRequest(requestId: string, remarks: string) {
 }
 
 export async function fetchTransactionStats(companyCode: string) {
-  const url = `${BASE_URL}/transactionnumber?company_code=${companyCode}`;
+  const url = `${BASE_URL}/transactionNumber?company_code=${companyCode}`;
   console.log("📥 Fetching transaction stats:", url);
 
-  const res = await fetch(url);
+  const res = await fetch(url, {
+    headers: {
+      "X-Api-Key": `${token}`,
+    },
+  });
   if (!res.ok) throw new Error("Failed to fetch transaction stats");
 
   const data = await res.json();
@@ -104,13 +133,15 @@ export async function fetchTransactionStats(companyCode: string) {
 
 export async function loginUser(username: string, password: string) {
   try {
-    const res = await fetch(`${BASE_URL}/userAuthentication`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ username, password }),
-    });
+    const res = await fetch(
+      `${BASE_URL}/userAuthentication?password=${password}&username=${username}`,
+      {
+        method: "POST",
+        headers: {
+          "X-Api-Key": `${token}`,
+        },
+      }
+    );
 
     const data = await res.json();
 

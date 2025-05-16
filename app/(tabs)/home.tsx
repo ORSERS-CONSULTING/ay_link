@@ -99,7 +99,7 @@ export default function HomeScreen() {
         )
         .map((item: any) => ({
           id: item.request_id.toString(),
-          clientName: item.company_name.replace(/^\s+/, ""),
+          clientName: item.company_name.replace(/\s+/g, " ").trim(),
           currentBalance: 0,
           requestedAmount: item.credit_amount,
           status: capitalize(item.status) as RequestStatus,
@@ -110,7 +110,7 @@ export default function HomeScreen() {
           companyCode: item.company_code,
           decisionTime: item.decision_time || null,
           approver: item.approver || null,
-          name: item.name || "",
+          name: item.name?.replace(/\s+/g, " ").trim() || ""
         }));
 
       const formattedChartData = response
@@ -184,7 +184,7 @@ export default function HomeScreen() {
 
         const username = await AsyncStorage.getItem("email");
         const result = await approveRequest(selectedClient.id);
-        console.log("✅ Approve response:", result);
+        //console.log("✅ Approve response:", result);
 
         Toast.show({ type: "success", text1: "Request approved!" });
         updateRequestStatus(selectedClient.id, "Approved", {
@@ -202,7 +202,7 @@ export default function HomeScreen() {
           selectedClient.id,
           rejectionNote.trim() // ✅ removed `now`
         );
-        console.log("✅ Reject response:", result);
+       // console.log("✅ Reject response:", result);
 
         Toast.show({ type: "success", text1: "Request rejected!" });
         updateRequestStatus(selectedClient.id, "Rejected", {

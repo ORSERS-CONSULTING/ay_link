@@ -26,7 +26,6 @@ import {
 import { useChartData } from "@/context/ChartDataContext";
 import { useClientRequests } from "@/context/ClientRequestContext";
 import { RefreshControl } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function RequestDetailScreen() {
   const router = useRouter();
@@ -83,6 +82,7 @@ export default function RequestDetailScreen() {
     approver,
     rejectionNote: existingRejectionNote,
     reason,
+    name,
   } = selectedRequest;
 
   const [localStatus, setLocalStatus] = useState(status);
@@ -120,7 +120,11 @@ export default function RequestDetailScreen() {
         companyCode: item.company_code,
         decisionTime: item.decision_time || null,
         approver: item.approver || null,
-        name: item.name || "",
+        name:
+          item.name
+            ?.replace(/\s+/g, " ")
+            .replace(/\u00A0/g, " ")
+            .trim() || "",
       }));
 
       const chartDataItems = response
@@ -147,7 +151,7 @@ export default function RequestDetailScreen() {
 
     try {
       if (selectedAction === "accept") {
-        const username = await AsyncStorage.getItem("email");
+        //const username = await AsyncStorage.getItem("email");
         await approveRequest(selectedRequest.id);
 
         Toast.show({ type: "success", text1: "Request approved!" });
@@ -168,7 +172,6 @@ export default function RequestDetailScreen() {
 
         setLocalStatus(updatedStatus);
         setLocalDecisionTime(updated.decision_time || new Date().toISOString());
-        // setLocalApprover(updated.approver || "You");
 
         if (updated.rejection_comment) {
           setLocalRejectionNote(updated.rejection_comment);
@@ -177,8 +180,9 @@ export default function RequestDetailScreen() {
         updateRequestStatus(selectedRequest.id, updatedStatus, {
           decisionTime: updated.decision_time,
           rejectionNote: updated.rejection_comment,
-          // approver: updated.approver,
         });
+
+        
       }
     } catch (error) {
       console.error(error);
@@ -231,13 +235,13 @@ export default function RequestDetailScreen() {
         normalize(entry.clientName) === normalize(selectedRequest.clientName)
     );
 
-    console.log(`🔍 ${status} for ${selectedRequest.companyCode}:`, filtered);
 
     return filtered.reduce((sum, entry) => sum + entry.requestedAmount, 0);
   };
   const onRefresh = async () => {
     if (!selectedRequest) return;
     setRefreshing(true);
+
     try {
       const refreshedRequests = await fetchClientRequests();
       const updated = refreshedRequests.find(
@@ -245,10 +249,16 @@ export default function RequestDetailScreen() {
       );
 
       if (updated) {
-        const updatedStatus =
-          updated.status === "APPROVED" ? "Approved" : "Rejected";
+        const normalizedStatus = updated.status?.toLowerCase();
+        let finalStatus: "Approved" | "Rejected" | "Pending" | "On hold" =
+          "Pending";
 
-        setLocalStatus(updatedStatus);
+        if (normalizedStatus === "approved") finalStatus = "Approved";
+        else if (normalizedStatus === "rejected") finalStatus = "Rejected";
+        else if (normalizedStatus === "on hold") finalStatus = "On hold";
+        else finalStatus = "Pending";
+
+        setLocalStatus(finalStatus);
         setLocalDecisionTime(updated.decision_time || new Date().toISOString());
         setLocalApprover(updated.approver || "You");
 
@@ -256,13 +266,22 @@ export default function RequestDetailScreen() {
           setLocalRejectionNote(updated.rejection_comment);
         }
 
-        updateRequestStatus(selectedRequest.id, updatedStatus, {
+        updateRequestStatus(selectedRequest.id, finalStatus, {
           decisionTime: updated.decision_time,
           rejectionNote: updated.rejection_comment,
           approver: updated.approver || "You",
         });
+
+        // ✅ Also include the name field properly
+        setSelectedRequest({
+          ...selectedRequest,
+          name:
+            updated.name
+              ?.replace(/\s+/g, " ")
+              .replace(/\u00A0/g, " ")
+              .trim() || "",
+        });
       }
-      console.log("selectedrequest", selectedRequest);
 
       const stats = await fetchTransactionStats(selectedRequest.companyCode);
       setTransactionStats(stats);
@@ -335,8 +354,13 @@ export default function RequestDetailScreen() {
             </>
           )}
 
-          {/* <Text style={styles.label}>Requester</Text>
-          <Text style={styles.value}>John Doe</Text> */}
+          <Text style={styles.label}>Requester</Text>
+          <Text style={styles.value}>
+            {name
+              ?.replace(/\s+/g, " ")
+              .replace(/\u00A0/g, " ")
+              .trim()}
+          </Text>
 
           <Text style={styles.label}>Submitted At</Text>
           <Text style={styles.value}>

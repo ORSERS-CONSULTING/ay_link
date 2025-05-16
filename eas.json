@@ -9,13 +9,22 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "API_SECRET": "$API_SECRET"
       }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "API_SECRET": "$API_SECRET"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "API_SECRET": "7C1NZa145ATTXYWy8K6lh6Q"
+      }
     }
   },
   "submit": {

@@ -19,6 +19,7 @@ import { loginUser } from "@/utils/api";
 
 export default function LoginScreen() {
   const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [attemptsLeft, setAttemptsLeft] = useState(3);
