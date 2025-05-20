@@ -83,6 +83,8 @@ export default function RequestDetailScreen() {
     rejectionNote: existingRejectionNote,
     reason,
     name,
+    outstandingBalance,
+    creditLimit,
   } = selectedRequest;
 
   const [localStatus, setLocalStatus] = useState(status);
@@ -103,6 +105,8 @@ export default function RequestDetailScreen() {
         clientName: item.company_name.trim(),
         currentBalance: 0,
         requestedAmount: item.credit_amount,
+        outstandingBalance: item.outstanding_balance || 0,
+        creditLimit: item.credit_limit || 0,
         status:
           item.status === "PENDING"
             ? "Pending"
@@ -148,52 +152,78 @@ export default function RequestDetailScreen() {
   const handleConfirmAction = async () => {
     if (!selectedRequest || isProcessing) return;
     setIsProcessing(true);
-
+  
     try {
       if (selectedAction === "accept") {
-        //const username = await AsyncStorage.getItem("email");
         await approveRequest(selectedRequest.id);
-
         Toast.show({ type: "success", text1: "Request approved!" });
-        await loadClientsAndChartData();
       } else if (selectedAction === "reject") {
         await rejectRequest(selectedRequest.id, rejectionNote.trim());
         Toast.show({ type: "success", text1: "Request rejected!" });
-        await loadClientsAndChartData();
       }
+  
+      // Reload request list and chart data
+      await loadClientsAndChartData();
+  
+      // Get the updated request from backend
       const refreshedRequests = await fetchClientRequests();
       const updated = refreshedRequests.find(
         (r: any) => r.request_id.toString() === selectedRequest.id
       );
-
+  
       if (updated) {
         const updatedStatus =
-          updated.status === "APPROVED" ? "Approved" : "Rejected";
-
+          updated.status === "APPROVED" ? "Approved" : 
+          updated.status === "REJECTED" ? "Rejected" : 
+          updated.status === "ON HOLD" ? "On hold" : "Pending";
+  
         setLocalStatus(updatedStatus);
         setLocalDecisionTime(updated.decision_time || new Date().toISOString());
-
+        setLocalApprover(updated.approver || "You");
+  
         if (updated.rejection_comment) {
           setLocalRejectionNote(updated.rejection_comment);
         }
-
+  
         updateRequestStatus(selectedRequest.id, updatedStatus, {
           decisionTime: updated.decision_time,
           rejectionNote: updated.rejection_comment,
+          approver: updated.approver || "You",
         });
-
-        
+  
+        // ✅ Update the full selectedRequest state
+        setSelectedRequest({
+          id: updated.request_id.toString(),
+          clientName: updated.company_name?.trim() || "",
+          requestedAmount: updated.credit_amount,
+          outstandingBalance: updated.outstanding_balance || 0,
+          creditLimit: updated.credit_limit || 0,
+          status: updatedStatus,
+          timestamp: updated.requested_at,
+          rejectionNote: updated.rejection_comment || "",
+          reason: updated.reason,
+          departmentName: updated.department_name,
+          companyCode: updated.company_code,
+          decisionTime: updated.decision_time || null,
+          approver: updated.approver || null,
+          name:
+            updated.name
+              ?.replace(/\s+/g, " ")
+              .replace(/\u00A0/g, " ")
+              .trim() || "",
+        });
       }
     } catch (error) {
       console.error(error);
       Toast.show({ type: "error", text1: "Action failed. Please try again." });
     }
-
+  
     setIsProcessing(false);
     setShowConfirm(false);
     setSelectedAction("");
     setRejectionNote("");
   };
+  
 
   const handleSendBack = async () => {
     if (!selectedRequest || !additionalInfo.trim()) {
@@ -235,7 +265,6 @@ export default function RequestDetailScreen() {
         normalize(entry.clientName) === normalize(selectedRequest.clientName)
     );
 
-
     return filtered.reduce((sum, entry) => sum + entry.requestedAmount, 0);
   };
   const onRefresh = async () => {
@@ -244,6 +273,7 @@ export default function RequestDetailScreen() {
 
     try {
       const refreshedRequests = await fetchClientRequests();
+      console.log("formatted", refreshedRequests);
       const updated = refreshedRequests.find(
         (r: any) => r.request_id.toString() === selectedRequest.id
       );
@@ -272,15 +302,35 @@ export default function RequestDetailScreen() {
           approver: updated.approver || "You",
         });
 
-        // ✅ Also include the name field properly
         setSelectedRequest({
-          ...selectedRequest,
+          id: updated.request_id.toString(),
+          clientName: updated.company_name?.trim() || "",
+          requestedAmount: updated.credit_amount,
+          outstandingBalance: updated.outstanding_balance || 0,
+          creditLimit: updated.credit_limit || 0,
+          status:
+            updated.status === "PENDING"
+              ? "Pending"
+              : updated.status === "APPROVED"
+              ? "Approved"
+              : updated.status === "REJECTED"
+              ? "Rejected"
+              : updated.status === "ON HOLD"
+              ? "On hold"
+              : "Pending",
+          timestamp: updated.requested_at,
+          rejectionNote: updated.rejection_comment || "",
+          reason: updated.reason,
+          departmentName: updated.department_name,
+          companyCode: updated.company_code,
+          decisionTime: updated.decision_time || null,
+          approver: updated.approver || null,
           name:
             updated.name
               ?.replace(/\s+/g, " ")
               .replace(/\u00A0/g, " ")
               .trim() || "",
-        });
+        });        
       }
 
       const stats = await fetchTransactionStats(selectedRequest.companyCode);
@@ -345,6 +395,21 @@ export default function RequestDetailScreen() {
             {requestedAmount.toLocaleString("en-US", {
               minimumFractionDigits: 2,
             })}
+          </Text>
+          <Text style={styles.label}>Outstanding Balance</Text>
+          <Text style={styles.value}>
+            AED{" "}
+            {outstandingBalance?.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+            }) || "0.00"}
+          </Text>
+
+          <Text style={styles.label}>Credit Limit</Text>
+          <Text style={styles.value}>
+            AED{" "}
+            {creditLimit?.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+            }) || "0.00"}
           </Text>
 
           {reason && (

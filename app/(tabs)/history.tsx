@@ -38,11 +38,14 @@ type Log = {
   clientName: string;
   requestedAmount: number;
   currentBalance: number;
-  status: "Approved" | "Rejected" | "Pending";
+  status: "Approved" | "Rejected" | "Pending" | "On hold";
   timestamp: string;
   decisionTime: string;
   rejectionNote: string;
   approver: string;
+  creditLimit: number;
+  outstandingBalance: number;
+  name: string;
 };
 
 export default function HistoryScreen() {
@@ -78,9 +81,9 @@ export default function HistoryScreen() {
       );
       const formatted: Log[] = filtered.map((item: any) => ({
         id: item.request_id.toString(),
-        clientName: item.company_name.trim(),
+        clientName: item.company_name?.trim() || "",
         requestedAmount: item.credit_amount,
-        currentBalance: 0,
+        currentBalance: 0, // if not used, consider removing
         status: capitalize(item.status),
         timestamp: item.requested_at,
         decisionTime: item.decision_time || "",
@@ -89,7 +92,15 @@ export default function HistoryScreen() {
         departmentName: item.department_name || "N/A",
         companyCode: item.company_code || "N/A",
         reason: item.reason || "",
+        creditLimit: item.credit_limit || 0, // ✅ Add this
+        outstandingBalance: item.outstanding_balance || 0, // ✅ Add this
+        name:
+          item.name
+            ?.replace(/\s+/g, " ")
+            .replace(/\u00A0/g, " ")
+            .trim() || "", // ✅ Add this
       }));
+
       setLogs(
         formatted.sort(
           (a, b) =>
@@ -118,19 +129,18 @@ export default function HistoryScreen() {
         .toLowerCase()
         .includes(search.toLowerCase());
       const statusMatch = filter === "All" || log.status === filter;
-  
+
       const logDate = new Date(log.decisionTime).toDateString();
       const selected = selectedDate
         ? new Date(selectedDate).toDateString()
         : new Date().toDateString();
-  
+
       const dateMatch = logDate === selected;
-  
+
       return matchesSearch && statusMatch && dateMatch;
     });
   }, [logs, search, filter, selectedDate]);
-  
-  
+
   const formatSubmittedTime = (timestamp: string) => {
     const now = new Date();
     const time = new Date(timestamp);
@@ -214,7 +224,7 @@ export default function HistoryScreen() {
   //                   minute: "2-digit",
   //                   hour12: false,
   //                 });
-  
+
   //                 const decisionAt = log.decisionTime
   //                   ? new Date(log.decisionTime).toLocaleString("en-GB", {
   //                       day: "2-digit",
@@ -225,7 +235,7 @@ export default function HistoryScreen() {
   //                       hour12: false,
   //                     })
   //                   : `<span class="placeholder">–</span>`;
-  
+
   //                 return `
   //                   <tr>
   //                     <td>${log.departmentName || '<span class="placeholder">–</span>'}</td>
@@ -249,12 +259,10 @@ export default function HistoryScreen() {
   //       </body>
   //     </html>
   //   `;
-  
+
   //   const { uri } = await Print.printToFileAsync({ html });
   //   await Sharing.shareAsync(uri);
   // };
-  
-  
 
   const RenderItem = useCallback(
     ({ item }: { item: Log }) => (

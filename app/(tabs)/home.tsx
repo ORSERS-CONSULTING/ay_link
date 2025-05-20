@@ -48,6 +48,8 @@ type Client = {
   decisionTime?: string;
   approver?: string;
   name?: string;
+  creditLimit: number;
+  outstandingBalance: number;
 };
 
 export default function HomeScreen() {
@@ -110,7 +112,9 @@ export default function HomeScreen() {
           companyCode: item.company_code,
           decisionTime: item.decision_time || null,
           approver: item.approver || null,
-          name: item.name?.replace(/\s+/g, " ").trim() || ""
+          name: item.name?.replace(/\s+/g, " ").trim() || "",
+          creditLimit: item.credit_limit || 0,
+          outstandingBalance: item.outstanding_balance || 0,
         }));
 
       const formattedChartData = response
@@ -146,10 +150,10 @@ export default function HomeScreen() {
     loadClientsAndChartData();
   }, []);
 
-  const uniqueRequesters = useMemo(() => {
-    const names = requests.map((c) => c.name ?? "").filter(Boolean);
-    return ["All", ...Array.from(new Set(names))];
-  }, [requests]);
+  // const uniqueRequesters = useMemo(() => {
+  //   const names = requests.map((c) => c.name ?? "").filter(Boolean);
+  //   return ["All", ...Array.from(new Set(names))];
+  // }, [requests]);
 
   const { totalApproved, totalRejected, countApproved, countRejected } =
     useDailyTotal(chartData, selectedDate);
@@ -202,7 +206,7 @@ export default function HomeScreen() {
           selectedClient.id,
           rejectionNote.trim() // ✅ removed `now`
         );
-       // console.log("✅ Reject response:", result);
+        // console.log("✅ Reject response:", result);
 
         Toast.show({ type: "success", text1: "Request rejected!" });
         updateRequestStatus(selectedClient.id, "Rejected", {
@@ -504,29 +508,42 @@ export default function HomeScreen() {
                 style={styles.rejectionInput}
               />
 
-<View style={styles.confirmActions}>
-  <TouchableOpacity
-    onPress={handleSendBack}
-    style={[styles.confirmBtn, { backgroundColor: "rgba(25, 118, 210, 0.1)" }]}
-  >
-    <Text style={{ color: "#1976D2", fontWeight: "bold", fontSize: 14 }}>
-      Send
-    </Text>
-  </TouchableOpacity>
+              <View style={styles.confirmActions}>
+                <TouchableOpacity
+                  onPress={handleSendBack}
+                  style={[
+                    styles.confirmBtn,
+                    { backgroundColor: "rgba(25, 118, 210, 0.1)" },
+                  ]}
+                >
+                  <Text
+                    style={{
+                      color: "#1976D2",
+                      fontWeight: "bold",
+                      fontSize: 14,
+                    }}
+                  >
+                    Send
+                  </Text>
+                </TouchableOpacity>
 
-  <TouchableOpacity
-    onPress={() => {
-      setShowInfoModal(false);
-      setAdditionalInfo("");
-    }}
-    style={[styles.confirmBtn, { backgroundColor: "rgba(153, 153, 153, 0.1)" }]}
-  >
-    <Text style={{ color: "#666", fontWeight: "bold", fontSize: 14 }}>
-      Cancel
-    </Text>
-  </TouchableOpacity>
-</View>
-
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowInfoModal(false);
+                    setAdditionalInfo("");
+                  }}
+                  style={[
+                    styles.confirmBtn,
+                    { backgroundColor: "rgba(153, 153, 153, 0.1)" },
+                  ]}
+                >
+                  <Text
+                    style={{ color: "#666", fontWeight: "bold", fontSize: 14 }}
+                  >
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </Modal>
@@ -1141,7 +1158,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     paddingHorizontal: 10,
     borderRadius: 8,
-    marginBottom:4
+    marginBottom: 4,
   },
 
   deptText: {

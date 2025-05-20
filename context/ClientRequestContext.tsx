@@ -15,8 +15,11 @@ export type ClientRequest = {
   companyCode: string;
   decisionTime?: string;
   approver?: string;
-  name?: string;
+  name: string; // ✅ now required
+  creditLimit: number; // ✅ added
+  outstandingBalance: number; // ✅ added
 };
+
 
 type ClientRequestContextType = {
   requests: ClientRequest[];
