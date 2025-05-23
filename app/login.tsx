@@ -16,6 +16,7 @@ import { Image } from "react-native";
 import * as LocalAuthentication from "expo-local-authentication";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { loginUser } from "@/utils/api";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -101,16 +102,6 @@ export default function LoginScreen() {
       Alert.alert("Error", "Something went wrong. Please try again.");
     }
   };
-
-  // useEffect(() => {
-  //   const clearFlags = async () => {
-  //     await AsyncStorage.removeItem("faceIdEnabled");
-  //     await AsyncStorage.removeItem("hasLoggedInBefore");
-  //     console.log("✅ Cleared faceIdEnabled and hasLoggedInBefore");
-  //   };
-
-  //   clearFlags();
-  // }, []);
 
   useEffect(() => {
     const checkFaceId = async () => {
@@ -204,20 +195,10 @@ export default function LoginScreen() {
           </View>
 
           <TouchableOpacity
-            onPress={handleFaceIDLogin}
-            style={{ marginTop: 10 }}
+            disabled={blocked}
+            onPress={handleLogin}
+            activeOpacity={0.9}
           >
-            <LinearGradient
-              colors={["#333", "#555"]}
-              style={styles.button}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Text style={styles.buttonText}>Login with Face ID</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-
-          <TouchableOpacity disabled={blocked} onPress={handleLogin}>
             <LinearGradient
               colors={["#1E1E4B", "#3D3D6B"]}
               style={styles.button}
@@ -227,6 +208,17 @@ export default function LoginScreen() {
               <Text style={styles.buttonText}>Login</Text>
             </LinearGradient>
           </TouchableOpacity>
+          {/* <TouchableOpacity
+            onPress={handleFaceIDLogin}
+            style={styles.faceIDIconButton}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons
+              name="face-recognition"
+              size={36}
+              color="#1E1E4B"
+            />
+          </TouchableOpacity> */}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -299,4 +291,10 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     fontSize: 16,
   },
+  // faceIDIconButton: {
+  //   alignItems: "center",
+  //   justifyContent: "center",
+  //   marginTop: 10,
+  //   marginBottom: 10,
+  // },
 });
