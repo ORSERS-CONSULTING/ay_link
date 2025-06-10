@@ -83,6 +83,7 @@ export default function HomeScreen() {
   const { requests, setRequests, getVisibleRequests, updateRequestStatus } =
     useClientRequests();
   const [isNavigating, setIsNavigating] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   useEffect(() => {
     if (showSearch) {
@@ -296,7 +297,20 @@ export default function HomeScreen() {
       return time.toLocaleDateString("en-GB"); // e.g., 02/12/2025
     }
   };
+  const handleLogoutPress = () => {
+    setShowLogoutModal(true);
+  };
 
+  const handleLogoutConfirm = async () => {
+    setShowLogoutModal(false);
+
+    try {
+      await AsyncStorage.clear(); // Adjust key if different
+      router.replace("/login"); // or whatever your login route is
+    } catch (error) {
+      console.error("Logout failed", error);
+    }
+  };
   const capitalize = (text: string) =>
     text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
 
@@ -547,6 +561,54 @@ export default function HomeScreen() {
             </View>
           </View>
         </Modal>
+        <Modal
+          transparent
+          visible={showLogoutModal}
+          animationType="fade"
+          onRequestClose={() => setShowLogoutModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.confirmModal}>
+              <Text style={styles.confirmText}>
+                Are you sure you want to log out?
+              </Text>
+
+              <View style={styles.confirmActions}>
+                <TouchableOpacity
+                  style={[
+                    styles.confirmBtn,
+                    { backgroundColor: "rgba(255, 59, 48, 0.1)" },
+                  ]}
+                  onPress={handleLogoutConfirm}
+                >
+                  <Text
+                    style={{
+                      color: "#FF3B30",
+                      fontWeight: "bold",
+                      fontSize: 14,
+                    }}
+                  >
+                    LOG OUT
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.confirmBtn,
+                    { backgroundColor: "rgba(153, 153, 153, 0.1)" },
+                  ]}
+                  onPress={() => setShowLogoutModal(false)}
+                >
+                  <Text
+                    style={{ color: "#666", fontWeight: "bold", fontSize: 14 }}
+                  >
+                    CANCEL
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
         {/* Title Row with Search Icon */}
         {/* Title Row with Search and Filter Icons */}
@@ -571,6 +633,7 @@ export default function HomeScreen() {
           </Text>
 
           <View style={{ flexDirection: "row", gap: 8 }}>
+            {/* Filter Button */}
             <TouchableOpacity
               style={{
                 backgroundColor: "#F5F5F5",
@@ -582,6 +645,7 @@ export default function HomeScreen() {
               <Ionicons name="filter-outline" size={20} color="#1E1E4B" />
             </TouchableOpacity>
 
+            {/* Search Button */}
             <TouchableOpacity
               style={{
                 backgroundColor: "#F5F5F5",
@@ -591,6 +655,18 @@ export default function HomeScreen() {
               onPress={() => setShowSearch(true)}
             >
               <Ionicons name="search" size={20} color="#1E1E4B" />
+            </TouchableOpacity>
+
+            {/* Logout Button */}
+            <TouchableOpacity
+              style={{
+                backgroundColor: "#F5F5F5",
+                borderRadius: 20,
+                padding: 10,
+              }}
+              onPress={handleLogoutPress} // defined below
+            >
+              <Ionicons name="log-out-outline" size={20} color="#1E1E4B" />
             </TouchableOpacity>
           </View>
         </View>
