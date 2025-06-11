@@ -16,7 +16,18 @@ import { Image } from "react-native";
 import * as LocalAuthentication from "expo-local-authentication";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { loginUser } from "@/utils/api";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+// No longer importing MaterialCommunityIcons if you're using Image component for biometric icon
+// import { MaterialCommunityIcons } from "@expo/vector-icons";
+
+// Assuming you have a logout function somewhere in your app that clears user session data
+// For demonstration, let's conceptualize it:
+// const logoutUser = async () => {
+//   await AsyncStorage.removeItem("userToken"); // Clear authentication token
+//   await AsyncStorage.removeItem("email"); // Clear stored email for current user
+//   await AsyncStorage.removeItem("isUserOptedInForBiometrics"); // If this is user-specific preference
+//   // IMPORTANT: DO NOT removeItem("isDeviceCapableAndInitializedForBiometrics") here!
+//   // ... navigate to login screen
+// };
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -26,13 +37,87 @@ export default function LoginScreen() {
   const [attemptsLeft, setAttemptsLeft] = useState(3);
   const [blocked, setBlocked] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showBiometricsOption, setShowBiometricsOption] = useState(false); // New state to control visibility
 
-  const handleFaceIDLogin = async () => {
-    const hasLoggedInBefore = await AsyncStorage.getItem("hasLoggedInBefore");
-    if (hasLoggedInBefore !== "true") {
+  // --- NEW: Check biometric availability on component mount ---
+  useEffect(() => {
+    const checkBiometricAvailability = async () => {
+      // Check if device generally supports biometrics and if it's enrolled
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+      // Check if the device has ever successfully completed a password login
+      const deviceInitialized = await AsyncStorage.getItem(
+        "isDeviceCapableAndInitializedForBiometrics"
+      );
+
+      // If hardware is there, enrolled, AND the device has been initialized once
+      if (hasHardware && isEnrolled && deviceInitialized === "true") {
+        setShowBiometricsOption(true); // Show the biometric button
+      } else {
+        setShowBiometricsOption(false);
+      }
+    };
+
+    checkBiometricAvailability();
+  }, []); // Run once on component mount
+
+  // --- NEW: Auto-authenticate on app start (if biometric is setup and enabled) ---
+  useEffect(() => {
+    const autoAuthenticateBiometrics = async () => {
+      const isDeviceInitialized = await AsyncStorage.getItem(
+        "isDeviceCapableAndInitializedForBiometrics"
+      );
+      const userOptedIn = await AsyncStorage.getItem(
+        "isUserOptedInForBiometrics"
+      ); // Assuming you set this somewhere, e.g., in settings
+      const storedEmail = await AsyncStorage.getItem("email"); // To know which user might be logging in
+
+      if (
+        isDeviceInitialized === "true" &&
+        userOptedIn === "true" &&
+        storedEmail
+      ) {
+        const hasHardware = await LocalAuthentication.hasHardwareAsync();
+        const enrolled = await LocalAuthentication.isEnrolledAsync();
+
+        if (hasHardware && enrolled) {
+          // You might want to pre-fill the email field here if auto-login fails
+          setEmail(storedEmail);
+
+          const result = await LocalAuthentication.authenticateAsync({
+            promptMessage: "Authenticate with Biometrics",
+            fallbackLabel: "Use passcode",
+          });
+
+          if (result.success) {
+            // In a real app, you'd likely re-authenticate with your backend using the stored email
+            // and some secure token if possible, or directly redirect if no backend token needed.
+            router.replace("/(tabs)/home");
+          } else {
+            // If auto-authentication fails, allow manual login
+            Alert.alert(
+              "Authentication Failed",
+              "Biometric auto-login unsuccessful. Please use email and password."
+            );
+          }
+        }
+      }
+    };
+
+    autoAuthenticateBiometrics();
+  }, []); // Run once on component mount
+
+  const handleBiometricLogin = async () => {
+    // Renamed from handleFaceIDLogin for clarity
+    // Check if the device has ever successfully completed a password login
+    const isDeviceInitialized = await AsyncStorage.getItem(
+      "isDeviceCapableAndInitializedForBiometrics"
+    );
+    if (isDeviceInitialized !== "true") {
       Alert.alert(
-        "Not Allowed",
-        "Please login with email and password first to enable Face ID."
+        "Biometric Setup Required",
+        "Please log in with email and password first to enable biometric login for this device."
       );
       return;
     }
@@ -42,23 +127,38 @@ export default function LoginScreen() {
 
     if (!hasHardware || !isEnrolled) {
       Alert.alert(
-        "Face ID Not Available",
-        "Your device doesn't support Face ID or it hasn't been set up."
+        "Biometrics Not Available",
+        "Your device doesn't support biometrics or it hasn't been set up."
+      );
+      return;
+    }
+
+    // You might also want to check if the *current user* has opted into biometrics
+    // (e.g., from AsyncStorage or a backend flag)
+    const isUserOptedIn = await AsyncStorage.getItem(
+      "isUserOptedInForBiometrics"
+    );
+    if (isUserOptedIn !== "true") {
+      Alert.alert(
+        "Biometrics Not Enabled",
+        "Biometric login is not enabled for your account. Please enable it in settings after logging in with email and password."
       );
       return;
     }
 
     const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: "Login with Face ID",
+      promptMessage: "Login with Biometrics",
       fallbackLabel: "Use passcode",
     });
 
     if (result.success) {
+      // In a real app, you'd authenticate the user with your backend here using the biometric success
+      // and potentially a stored user identifier (like email or user ID)
       router.replace("/(tabs)/home");
     } else {
       Alert.alert(
         "Authentication Failed",
-        "Face ID verification unsuccessful."
+        "Biometric verification unsuccessful."
       );
     }
   };
@@ -78,9 +178,19 @@ export default function LoginScreen() {
       const response = await loginUser(email, password);
 
       if (response.success) {
-        await AsyncStorage.setItem("faceIdEnabled", "true");
-        await AsyncStorage.setItem("hasLoggedInBefore", "true");
+        // --- NEW LOGIC FOR BIOMETRICS ---
+        // Set device-level flag to indicate initial password login happened
+        await AsyncStorage.setItem(
+          "isDeviceCapableAndInitializedForBiometrics",
+          "true"
+        );
+        // Store current user's email for potential auto-login via biometrics
         await AsyncStorage.setItem("email", email);
+        // This 'isUserOptedInForBiometrics' should ideally be set/toggled in settings
+        // For now, let's assume successful login implies they can use it for subsequent times
+        await AsyncStorage.setItem("isUserOptedInForBiometrics", "true");
+        // Update biometric option visibility in case it wasn't shown
+        setShowBiometricsOption(true);
 
         router.replace("/(tabs)/home");
       } else {
@@ -102,32 +212,6 @@ export default function LoginScreen() {
       Alert.alert("Error", "Something went wrong. Please try again.");
     }
   };
-
-  useEffect(() => {
-    const checkFaceId = async () => {
-      const hasLoggedInBefore = await AsyncStorage.getItem("hasLoggedInBefore");
-      const faceIdEnabled = await AsyncStorage.getItem("faceIdEnabled");
-
-      if (hasLoggedInBefore === "true" && faceIdEnabled === "true") {
-        const hasHardware = await LocalAuthentication.hasHardwareAsync();
-        const supported =
-          await LocalAuthentication.supportedAuthenticationTypesAsync();
-        const enrolled = await LocalAuthentication.isEnrolledAsync();
-
-        if (hasHardware && supported.length && enrolled) {
-          const result = await LocalAuthentication.authenticateAsync({
-            promptMessage: "Authenticate with Face ID",
-          });
-
-          if (result.success) {
-            router.replace("/(tabs)/home");
-          }
-        }
-      }
-    };
-
-    checkFaceId();
-  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -181,7 +265,15 @@ export default function LoginScreen() {
               placeholder="Password"
               placeholderTextColor="#aaa"
               value={password}
-              onChangeText={setPassword}
+              //   onChangeText={setPassword}
+              onChangeText={(text) => {
+                setPassword(text);
+                // Reset blocked state if user starts typing password after being blocked
+                if (blocked && text.length > 0) {
+                  setBlocked(false);
+                  setAttemptsLeft(3); // Reset attempts if user starts typing after block
+                }
+              }}
               secureTextEntry={!showPassword}
             />
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
@@ -208,17 +300,20 @@ export default function LoginScreen() {
               <Text style={styles.buttonText}>Login</Text>
             </LinearGradient>
           </TouchableOpacity>
-          {/* <TouchableOpacity
-            onPress={handleFaceIDLogin}
-            style={styles.faceIDIconButton}
-            activeOpacity={0.7}
-          >
-            <MaterialCommunityIcons
-              name="face-recognition"
-              size={36}
-              color="#1E1E4B"
-            />
-          </TouchableOpacity> */}
+
+          {/* Conditionally render biometric option */}
+          {showBiometricsOption && (
+            <TouchableOpacity
+              onPress={handleBiometricLogin} // Renamed handler
+              style={styles.biometricIconButton}
+              activeOpacity={0.7}
+            >
+              <Image
+                source={require("@/assets/images/face.png")}
+                style={styles.biometricIconImage}
+              />
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -291,10 +386,31 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     fontSize: 16,
   },
-  // faceIDIconButton: {
-  //   alignItems: "center",
-  //   justifyContent: "center",
-  //   marginTop: 10,
-  //   marginBottom: 10,
-  // },
+  biometricIconButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 30,
+    marginBottom: 20,
+    width: 70,
+    height: 70,
+    alignSelf: "center",
+    borderRadius: 35,
+    backgroundColor: "#f9f9f9",
+    borderWidth: 1,
+    borderColor: "#ddd",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  biometricIconImage: {
+    width: 40,
+    height: 40,
+    resizeMode: "contain",
+    tintColor: "#1E1E4B",
+  },
 });

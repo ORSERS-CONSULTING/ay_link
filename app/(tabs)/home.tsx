@@ -14,6 +14,7 @@ import {
   View,
   ScrollView,
   RefreshControl,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
@@ -305,10 +306,23 @@ export default function HomeScreen() {
     setShowLogoutModal(false);
 
     try {
-      await AsyncStorage.clear(); // Adjust key if different
-      router.replace("/login"); // or whatever your login route is
+      const isDeviceInitialized = await AsyncStorage.getItem(
+        "isDeviceCapableAndInitializedForBiometrics"
+      );
+
+      await AsyncStorage.removeItem("userToken");
+      await AsyncStorage.removeItem("email");
+      if (isDeviceInitialized === "true") {
+        await AsyncStorage.setItem(
+          "isDeviceCapableAndInitializedForBiometrics",
+          "true"
+        );
+      }
+
+      router.replace("/login");
     } catch (error) {
       console.error("Logout failed", error);
+      Alert.alert("Logout Error", "Failed to log out. Please try again.");
     }
   };
   const capitalize = (text: string) =>
