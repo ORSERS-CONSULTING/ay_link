@@ -6,14 +6,13 @@ export default {
     slug: "creditApp",
     version: "1.0.1",
     orientation: "portrait",
-    icon: "./assets/images/icon.png",
+    icon: "./assets/images/logo.png",
     scheme: "myapp",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.tenioduola.aylink",
-      buildNumber: "2",
       infoPlist: {
         UIStatusBarStyle: "UIStatusBarStyleDarkContent",
         UIViewControllerBasedStatusBarAppearance: false,
@@ -48,7 +47,7 @@ export default {
       [
         "expo-splash-screen",
         {
-          image: "./assets/images/splash-icon.png",
+          image: "./assets/images/logo.png",
           imageWidth: 200,
           resizeMode: "contain",
           backgroundColor: "#ffffff"
