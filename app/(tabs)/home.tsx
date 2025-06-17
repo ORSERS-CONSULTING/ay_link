@@ -32,7 +32,7 @@ import {
   ClientRequest,
   RequestStatus,
 } from "@/context/ClientRequestContext";
-import { useDailyTotal } from "@/hooks/useDailyTotal"; // update path accordingly
+import { useDailyTotal } from "@/hooks/useDailyTotal";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type Client = {
@@ -283,21 +283,27 @@ export default function HomeScreen() {
     );
   };
 
-  const getTimeAgo = (timestamp: string) => {
-    const now = new Date();
-    const time = new Date(timestamp);
-    const diffMs = now.getTime() - time.getTime();
-    const diffHrs = diffMs / (1000 * 60 * 60);
+const getTimeAgo = (timestamp: string) => {
+  const localTimestamp = timestamp.replace(/Z$/, ''); // Remove 'Z' if wrongly there
+  const date = new Date(localTimestamp); // Treat as local time
+  const now = new Date();
 
-    if (diffHrs < 24) {
-      return time.toLocaleTimeString("en-GB", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }); // e.g., 14:32
-    } else {
-      return time.toLocaleDateString("en-GB"); // e.g., 02/12/2025
-    }
-  };
+  const isSameDay =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+
+  if (isSameDay) {
+    return date.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } else {
+    return date.toLocaleDateString("en-GB");
+  }
+};
+
+
   const handleLogoutPress = () => {
     setShowLogoutModal(true);
   };
@@ -442,7 +448,7 @@ export default function HomeScreen() {
         <StatusBar hidden />
         <Modal
           transparent
-          animationType="fade"
+          animationType="slide"
           visible={showConfirm}
           onRequestClose={() => setShowConfirm(false)}
         >
@@ -672,7 +678,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
 
             {/* Logout Button */}
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={{
                 backgroundColor: "#F5F5F5",
                 borderRadius: 20,
@@ -681,9 +687,10 @@ export default function HomeScreen() {
               onPress={handleLogoutPress} // defined below
             >
               <Ionicons name="log-out-outline" size={20} color="#1E1E4B" />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
         </View>
+        {/* <View>Welcome Mr.{}</View> */}
 
         {/* Metrics for Date */}
         <View
@@ -1024,11 +1031,17 @@ export default function HomeScreen() {
               </Text>
             </View>
           ) : (
-            filteredData.map((item) => (
-              <View key={item.id} style={{ marginTop: 12 }}>
-                {renderItem({ item })}
-              </View>
-            ))
+            filteredData
+              .sort(
+                (a, b) =>
+                  new Date(b.timestamp).getTime() -
+                  new Date(a.timestamp).getTime()
+              )
+              .map((item) => (
+                <View key={item.id} style={{ marginTop: 12 }}>
+                  {renderItem({ item })}
+                </View>
+              ))
           )}
         </ScrollView>
 

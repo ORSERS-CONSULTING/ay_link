@@ -118,7 +118,6 @@ export async function sendBackRequest(requestId: string, remarks: string) {
 
 export async function fetchTransactionStats(companyCode: string) {
   const url = `${BASE_URL}/transactionNumber?company_code=${companyCode}`;
-  console.log("📥 Fetching transaction stats:", url);
 
   const res = await fetch(url, {
     headers: {
@@ -128,7 +127,10 @@ export async function fetchTransactionStats(companyCode: string) {
   if (!res.ok) throw new Error("Failed to fetch transaction stats");
 
   const data = await res.json();
+    console.log("📥 Fetching transaction stats:", data);
+
   return data.items?.[0] ?? { invoice_count: 0, transaction_count: 0 };
+
 }
 
 export async function loginUser(username: string, password: string) {
