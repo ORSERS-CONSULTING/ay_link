@@ -283,26 +283,25 @@ export default function HomeScreen() {
     );
   };
 
-const getTimeAgo = (timestamp: string) => {
-  const localTimestamp = timestamp.replace(/Z$/, ''); // Remove 'Z' if wrongly there
-  const date = new Date(localTimestamp); // Treat as local time
-  const now = new Date();
+  const getTimeAgo = (timestamp: string) => {
+    const localTimestamp = timestamp.replace(/Z$/, ""); // Remove 'Z' if wrongly there
+    const date = new Date(localTimestamp); // Treat as local time
+    const now = new Date();
 
-  const isSameDay =
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth() &&
-    date.getDate() === now.getDate();
+    const isSameDay =
+      date.getFullYear() === now.getFullYear() &&
+      date.getMonth() === now.getMonth() &&
+      date.getDate() === now.getDate();
 
-  if (isSameDay) {
-    return date.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } else {
-    return date.toLocaleDateString("en-GB");
-  }
-};
-
+    if (isSameDay) {
+      return date.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } else {
+      return date.toLocaleDateString("en-GB");
+    }
+  };
 
   const handleLogoutPress = () => {
     setShowLogoutModal(true);
@@ -452,54 +451,70 @@ const getTimeAgo = (timestamp: string) => {
           visible={showConfirm}
           onRequestClose={() => setShowConfirm(false)}
         >
-          <View style={styles.modalOverlay}>
-            <View style={styles.confirmModal}>
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => setShowConfirm(false)}
+            style={{
+              flex: 1,
+              justifyContent: "flex-end",
+              backgroundColor: "rgba(0, 0, 0, 0.3)",
+            }}
+          >
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={() => {}}
+              style={{
+                backgroundColor: "#fff",
+                borderTopLeftRadius: 20,
+                borderTopRightRadius: 20,
+                padding: 20,
+                paddingVertical: 45,
+                minHeight: "25%",
+              }}
+            >
               <Text style={styles.confirmText}>
-                Are you sure you want to{" "}
-                {selectedAction === "accept" ? "approve" : "reject"} the request
-                for {selectedClient?.clientName}?
+                {selectedAction === "accept" ? "Approve" : "Reject"}{" "}
+                {selectedClient?.clientName}'s request for{" "}
+                <Text style={{ fontWeight: "bold" }}>
+                  AED{" "}
+                  {selectedClient?.requestedAmount.toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </Text>
+                ?
               </Text>
 
               {selectedAction === "reject" && (
                 <TextInput
                   placeholder="Optional: reason for rejection"
                   placeholderTextColor="#999"
-                  style={styles.rejectionInput}
+                  style={[styles.rejectionInput, { marginBottom: 15 }]}
                   value={rejectionNote}
                   onChangeText={setRejectionNote}
                   multiline
+              
                 />
               )}
 
-              <View style={styles.confirmActions}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  marginTop: 10,
+                  paddingTop:5
+                }}
+              >
                 <TouchableOpacity
                   style={[
-                    styles.confirmBtn,
                     {
-                      backgroundColor:
-                        selectedAction === "accept"
-                          ? "rgba(46, 125, 50, 0.1)"
-                          : "rgba(198, 40, 40, 0.1)",
+                      flex: 1,
+                      paddingVertical: 10,
+                      borderRadius: 10,
+                      backgroundColor: "rgba(153, 153, 153, 0.1)",
+                      alignItems: "center",
+                      marginRight: 8,
                     },
-                  ]}
-                  onPress={handleConfirmAction}
-                >
-                  <Text
-                    style={{
-                      color:
-                        selectedAction === "accept" ? "#2E7D32" : "#C62828",
-                      fontWeight: "bold",
-                      fontSize: 14,
-                    }}
-                  >
-                    {selectedAction === "accept" ? "APPROVE" : "REJECT"}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.confirmBtn,
-                    { backgroundColor: "rgba(153, 153, 153, 0.1)" },
                   ]}
                   onPress={() => {
                     setShowConfirm(false);
@@ -518,18 +533,65 @@ const getTimeAgo = (timestamp: string) => {
                     CANCEL
                   </Text>
                 </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    {
+                      flex: 1,
+                      paddingVertical: 10,
+                      borderRadius: 10,
+                      backgroundColor:
+                        selectedAction === "accept"
+                          ? "rgba(46, 125, 50, 0.1)"
+                          : "rgba(198, 40, 40, 0.1)",
+                      alignItems: "center",
+                      marginLeft: 8,
+                    },
+                  ]}
+                  onPress={handleConfirmAction}
+                >
+                  <Text
+                    style={{
+                      color:
+                        selectedAction === "accept" ? "#2E7D32" : "#C62828",
+                      fontWeight: "bold",
+                      fontSize: 14,
+                    }}
+                  >
+                    {selectedAction === "accept" ? "APPROVE" : "REJECT"}
+                  </Text>
+                </TouchableOpacity>
               </View>
-            </View>
-          </View>
+            </TouchableOpacity>
+          </TouchableOpacity>
         </Modal>
         <Modal
           transparent
+          animationType="slide"
           visible={showInfoModal}
-          animationType="fade"
           onRequestClose={() => setShowInfoModal(false)}
         >
-          <View style={styles.modalOverlay}>
-            <View style={styles.confirmModal}>
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => setShowInfoModal(false)}
+            style={{
+              flex: 1,
+              justifyContent: "flex-end",
+              backgroundColor: "rgba(0, 0, 0, 0.3)",
+            }}
+          >
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={() => {}}
+              style={{
+                backgroundColor: "#fff",
+                borderTopLeftRadius: 20,
+                borderTopRightRadius: 20,
+                padding: 20,
+                paddingVertical: 45,
+                minHeight: "25%",
+              }}
+            >
               <Text style={styles.confirmText}>
                 Enter additional info required for {selectedClient?.clientName}:
               </Text>
@@ -539,16 +601,52 @@ const getTimeAgo = (timestamp: string) => {
                 value={additionalInfo}
                 onChangeText={setAdditionalInfo}
                 multiline
-                style={styles.rejectionInput}
+                style={[styles.rejectionInput, { marginBottom: 15 }]}
               />
 
-              <View style={styles.confirmActions}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  marginTop: 10,
+                  paddingTop: 5
+                }}
+              >
                 <TouchableOpacity
-                  onPress={handleSendBack}
                   style={[
-                    styles.confirmBtn,
-                    { backgroundColor: "rgba(25, 118, 210, 0.1)" },
+                    {
+                      flex: 1,
+                      paddingVertical: 10,
+                      borderRadius: 10,
+                      backgroundColor: "rgba(153, 153, 153, 0.1)",
+                      alignItems: "center",
+                      marginRight: 8,
+                    },
                   ]}
+                  onPress={() => {
+                    setShowInfoModal(false);
+                    setAdditionalInfo("");
+                  }}
+                >
+                  <Text
+                    style={{ color: "#666", fontWeight: "bold", fontSize: 14 }}
+                  >
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    {
+                      flex: 1,
+                      paddingVertical: 10,
+                      borderRadius: 10,
+                      backgroundColor: "rgba(25, 118, 210, 0.1)",
+                      alignItems: "center",
+                      marginLeft: 8,
+                    },
+                  ]}
+                  onPress={handleSendBack}
                 >
                   <Text
                     style={{
@@ -560,44 +658,80 @@ const getTimeAgo = (timestamp: string) => {
                     Send
                   </Text>
                 </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => {
-                    setShowInfoModal(false);
-                    setAdditionalInfo("");
-                  }}
-                  style={[
-                    styles.confirmBtn,
-                    { backgroundColor: "rgba(153, 153, 153, 0.1)" },
-                  ]}
-                >
-                  <Text
-                    style={{ color: "#666", fontWeight: "bold", fontSize: 14 }}
-                  >
-                    Cancel
-                  </Text>
-                </TouchableOpacity>
               </View>
-            </View>
-          </View>
+            </TouchableOpacity>
+          </TouchableOpacity>
         </Modal>
+
         <Modal
           transparent
+          animationType="slide"
           visible={showLogoutModal}
-          animationType="fade"
           onRequestClose={() => setShowLogoutModal(false)}
         >
-          <View style={styles.modalOverlay}>
-            <View style={styles.confirmModal}>
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => setShowLogoutModal(false)}
+            style={{
+              flex: 1,
+              justifyContent: "flex-end",
+              backgroundColor: "rgba(0, 0, 0, 0.3)",
+            }}
+          >
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={() => {}}
+              style={{
+                backgroundColor: "#fff",
+                borderTopLeftRadius: 20,
+                borderTopRightRadius: 20,
+                padding: 20,
+                paddingVertical: 45,
+                minHeight: "25%",
+              }}
+            >
               <Text style={styles.confirmText}>
                 Are you sure you want to log out?
               </Text>
 
-              <View style={styles.confirmActions}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  marginTop: 10,
+                  paddingTop: 5
+                }}
+              >
                 <TouchableOpacity
                   style={[
-                    styles.confirmBtn,
-                    { backgroundColor: "rgba(255, 59, 48, 0.1)" },
+                    {
+                      flex: 1,
+                      paddingVertical: 10,
+                      borderRadius: 10,
+                      backgroundColor: "rgba(153, 153, 153, 0.1)",
+                      alignItems: "center",
+                      marginRight: 8,
+                    },
+                  ]}
+                  onPress={() => setShowLogoutModal(false)}
+                >
+                  <Text
+                    style={{ color: "#666", fontWeight: "bold", fontSize: 14 }}
+                  >
+                    CANCEL
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    {
+                      flex: 1,
+                      paddingVertical: 10,
+                      borderRadius: 10,
+                      backgroundColor: "rgba(255, 59, 48, 0.1)",
+                      alignItems: "center",
+                      marginLeft: 8,
+                    },
                   ]}
                   onPress={handleLogoutConfirm}
                 >
@@ -611,23 +745,9 @@ const getTimeAgo = (timestamp: string) => {
                     LOG OUT
                   </Text>
                 </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.confirmBtn,
-                    { backgroundColor: "rgba(153, 153, 153, 0.1)" },
-                  ]}
-                  onPress={() => setShowLogoutModal(false)}
-                >
-                  <Text
-                    style={{ color: "#666", fontWeight: "bold", fontSize: 14 }}
-                  >
-                    CANCEL
-                  </Text>
-                </TouchableOpacity>
               </View>
-            </View>
-          </View>
+            </TouchableOpacity>
+          </TouchableOpacity>
         </Modal>
 
         {/* Title Row with Search Icon */}
