@@ -23,7 +23,7 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "API_SECRET": "7C1NZa145ATTXYWy8K6lh6Q"
+        "API_SECRET": "$API_SECRET"
       }
     }
   },
