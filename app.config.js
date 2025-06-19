@@ -10,6 +10,11 @@ export default {
     scheme: "myapp",
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
+    statusBar: {
+      style: "dark",
+      hidden: false,
+      backgroundColor: "#ffffff"
+    },
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.tenioduola.aylink",
