@@ -94,10 +94,7 @@ function RootLayoutContent() {
           options={{ headerShown: false }}
         />
       </Stack>
-      <StatusBar
-        style={colorScheme === "dark" ? "light" : "dark"}
-        backgroundColor="#F5F5F5"
-      />
+      <StatusBar style="dark" backgroundColor="#F5F5F5" />
     </ThemeProvider>
   );
 }

@@ -20,7 +20,7 @@ export default {
       bundleIdentifier: "com.tenioduola.aylink",
       infoPlist: {
         UIStatusBarStyle: "UIStatusBarStyleDarkContent",
-        UIViewControllerBasedStatusBarAppearance: false,
+        UIViewControllerBasedStatusBarAppearance: true,
         ITSAppUsesNonExemptEncryption: false
       }
     },

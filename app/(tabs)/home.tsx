@@ -444,7 +444,7 @@ export default function HomeScreen() {
           paddingHorizontal: 16,
         }}
       >
-        <StatusBar hidden />
+        {/* <StatusBar/> */}
         <Modal
           transparent
           animationType="slide"
