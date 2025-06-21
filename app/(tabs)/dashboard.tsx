@@ -21,6 +21,8 @@ import Toast from "react-native-toast-message";
 import { useFocusEffect } from "@react-navigation/native";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { useWindowDimensions } from "react-native";
+import LineChart from "react-native-chart-kit/dist/line-chart";
+import { Dimensions } from "react-native";
 
 type Log = {
   reason: string;
@@ -38,14 +40,28 @@ type Log = {
 };
 
 export default function DashboardScreen() {
-  const insets = useSafeAreaInsets(); 
+  const insets = useSafeAreaInsets();
   const [logs, setLogs] = useState<Log[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
+  const [showChartModal, setShowChartModal] = useState(false);
+  const [groupBy, setGroupBy] = useState<"days" | "months">("days");
+  const [showDataPoints, setShowDataPoints] = useState(false);
+  const [showAllData, setShowAllData] = useState(false);
+  const [customRange, setCustomRange] = useState({
+    days: 30,
+    months: 12,
+  });
+
   const { width } = useWindowDimensions();
   const isLandscape = width > 700;
   const columnWidth = isLandscape ? 160 : 130;
+  const { width: windowWidth } = Dimensions.get("window");
+  const DEFAULT_MAX_POINTS = {
+    days: 30,
+    months: 12,
+  };
 
   const loadLogs = async () => {
     try {
@@ -109,6 +125,57 @@ export default function DashboardScreen() {
       return logDate === effectiveDate.toDateString();
     });
   }, [logs, selectedDate]);
+
+  const approvedLogs = useMemo(
+    () => logs.filter((log) => log.status === "Approved" && log.decisionTime),
+    [logs]
+  );
+
+  const chartData = useMemo(() => {
+    const grouped: Record<string, number> = {};
+
+    approvedLogs.forEach((log) => {
+      const date = new Date(log.decisionTime);
+      const key =
+        groupBy === "days"
+          ? date.toISOString().split("T")[0]
+          : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+              2,
+              "0"
+            )}`;
+      grouped[key] = (grouped[key] || 0) + log.requestedAmount;
+    });
+
+    const sortedKeys = Object.keys(grouped).sort();
+
+    let finalKeys = sortedKeys;
+
+    if (!showAllData) {
+      // Apply either custom range or default limits
+      const maxPoints = customRange[groupBy];
+      finalKeys = sortedKeys.slice(-maxPoints);
+    }
+
+    const labels = finalKeys.map((key) =>
+      groupBy === "days"
+        ? new Date(key).toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "short",
+          })
+        : new Date(`${key}-01`).toLocaleDateString("en-GB", {
+            month: "short",
+            year: "numeric",
+          })
+    );
+    const data = finalKeys.map((key) => grouped[key]);
+
+    return {
+      labels,
+      datasets: [{ data }],
+      totalDataPoints: sortedKeys.length,
+      showingDataPoints: finalKeys.length,
+    };
+  }, [approvedLogs, groupBy, showAllData, customRange]);
 
   const handleExportPDF = async () => {
     const formattedDate = selectedDate
@@ -250,14 +317,19 @@ export default function DashboardScreen() {
         {/* Header Row */}
         <View style={styles.topBar}>
           <Text style={styles.header}>Dashboard</Text>
-          <TouchableOpacity onPress={handleExportPDF}>
-            <Ionicons
-              name="download-outline"
-              size={22}
-              color="#1E1E4B"
-              style={{ marginLeft: 12 }}
-            />
-          </TouchableOpacity>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <TouchableOpacity onPress={() => setShowChartModal(true)}>
+              <Ionicons name="bar-chart-outline" size={22} color="#1E1E4B" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleExportPDF}>
+              <Ionicons
+                name="download-outline"
+                size={22}
+                color="#1E1E4B"
+                style={{ marginLeft: 22 }}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.dateRow}>
@@ -380,6 +452,364 @@ export default function DashboardScreen() {
               }}
             />
           ))}
+
+        <Modal
+          visible={showChartModal}
+          animationType="slide"
+          presentationStyle="pageSheet"
+        >
+          <SafeAreaView style={styles.modalContainer}>
+            {/* Header */}
+            <View style={styles.modalHeader}>
+              <View style={styles.headerContent}>
+                <Text style={styles.modalTitle}>Approved Amounts</Text>
+                <Text style={styles.modalSubtitle}>
+                  {groupBy === "days" ? "Daily Overview" : "Monthly Overview"}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowChartModal(false)}
+                style={styles.closeButton}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Toggle Controls */}
+            <View style={styles.controlsContainer}>
+              <View style={styles.segmentedControl}>
+                <TouchableOpacity
+                  onPress={() => setGroupBy("days")}
+                  style={[
+                    styles.segmentButton,
+                    styles.segmentButtonLeft,
+                    groupBy === "days" && styles.segmentButtonActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.segmentText,
+                      groupBy === "days" && styles.segmentTextActive,
+                    ]}
+                  >
+                    Days
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setGroupBy("months")}
+                  style={[
+                    styles.segmentButton,
+                    styles.segmentButtonRight,
+                    groupBy === "months" && styles.segmentButtonActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.segmentText,
+                      groupBy === "months" && styles.segmentTextActive,
+                    ]}
+                  >
+                    Months
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.dataControlsContainer}>
+              {!showAllData && (
+                <View style={styles.rangeControls}>
+                  <Text style={styles.rangeLabel}>Showing last:</Text>
+                  <View style={styles.rangeButtons}>
+                    {groupBy === "days" ? (
+                      <>
+                        {[7, 30, 90].map((days) => (
+                          <TouchableOpacity
+                            key={days}
+                            onPress={() =>
+                              setCustomRange({ ...customRange, days })
+                            }
+                            style={[
+                              styles.rangeButton,
+                              customRange.days === days &&
+                                styles.rangeButtonActive,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.rangeButtonText,
+                                customRange.days === days &&
+                                  styles.rangeButtonTextActive,
+                              ]}
+                            >
+                              {days}d
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </>
+                    ) : (
+                      <>
+                        {[6, 12, 24].map((months) => (
+                          <TouchableOpacity
+                            key={months}
+                            onPress={() =>
+                              setCustomRange({ ...customRange, months })
+                            }
+                            style={[
+                              styles.rangeButton,
+                              customRange.months === months &&
+                                styles.rangeButtonActive,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.rangeButtonText,
+                                customRange.months === months &&
+                                  styles.rangeButtonTextActive,
+                              ]}
+                            >
+                              {months}m
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </>
+                    )}
+                  </View>
+                </View>
+              )}
+
+              <View style={styles.dataToggle}>
+                <Text style={styles.dataInfoText}>
+                  Showing {chartData.showingDataPoints} of{" "}
+                  {chartData.totalDataPoints} data points
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setShowAllData(!showAllData)}
+                  style={styles.toggleButton}
+                >
+                  <Text style={styles.toggleButtonText}>
+                    {showAllData ? "Show Recent Only" : "Show All Data"}
+                  </Text>
+                  <Ionicons
+                    name={showAllData ? "contract-outline" : "expand-outline"}
+                    size={14}
+                    color="#3B82F6"
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+            {/* Chart Content */}
+            <ScrollView
+              style={styles.chartContainer}
+              contentContainerStyle={styles.chartContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {chartData.labels.length > 0 && approvedLogs.length > 0 ? (
+                <View style={styles.chartWrapper}>
+                  {/* Chart Stats */}
+                  <View style={styles.statsContainer}>
+                    <View style={styles.statCard}>
+                      <Text style={styles.statLabel}>Total Approved</Text>
+                      <Text style={styles.statValue}>
+                        AED{" "}
+                        {approvedLogs
+                          .reduce((sum, l) => sum + l.requestedAmount, 0)
+                          .toLocaleString()}
+                      </Text>
+                    </View>
+                    <View style={styles.statCard}>
+                      <Text style={styles.statLabel}>Average</Text>
+                      <Text style={styles.statValue}>
+                        AED{" "}
+                        {Math.round(
+                          approvedLogs.reduce(
+                            (sum, l) => sum + l.requestedAmount,
+                            0
+                          ) / chartData.labels.length
+                        ).toLocaleString()}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.chartSection}>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                    >
+                      <LineChart
+                        data={chartData}
+                        width={windowWidth - 48}
+                        height={280}
+                        //yAxisLabel="د.إ"
+                        fromZero
+                        withInnerLines
+                        segments={5}
+                        yLabelsOffset={12}
+                        // formatXLabel={(value) => value} // Optional
+                        formatYLabel={(value) => Number(value).toLocaleString()}
+                        verticalLabelRotation={30} // This rotates date labels for better spacing
+                        chartConfig={{
+                          backgroundColor: "#ffffff",
+                          backgroundGradientFrom: "#ffffff",
+                          backgroundGradientTo: "#ffffff",
+                          decimalPlaces: 0,
+                          color: (opacity = 1) =>
+                            `rgba(59, 130, 246, ${opacity})`,
+                          labelColor: (opacity = 1) =>
+                            `rgba(55, 65, 81, ${opacity})`,
+                          style: {
+                            borderRadius: 16,
+                          },
+                          propsForDots: {
+                            r: "5",
+                            strokeWidth: "2",
+                            stroke: "#3B82F6",
+                            fill: "#ffffff",
+                          },
+                          propsForLabels: {
+                            fontSize: 11,
+                            fontWeight: "500",
+                          },
+                          propsForVerticalLabels: {
+                            fontSize: 10,
+                            fill: "#6B7280",
+                          },
+                          propsForHorizontalLabels: {
+                            fontSize: 10,
+                            fill: "#6B7280",
+                          },
+                        }}
+                        bezier
+                        style={styles.chart}
+                        withVerticalLines={false}
+                        withHorizontalLines={true}
+                        withVerticalLabels={true}
+                        withHorizontalLabels={true}
+                        withDots={true}
+                        withShadow={false}
+                      />
+                    </ScrollView>
+                    <View style={{ marginTop: 16, alignItems: "center" }}>
+                      <Text style={{ fontSize: 12, color: "#6B7280" }}>
+                        Peak: AED{" "}
+                        {Math.max(
+                          ...chartData.datasets[0].data
+                        ).toLocaleString()}{" "}
+                        on{" "}
+                        {
+                          chartData.labels[
+                            chartData.datasets[0].data.indexOf(
+                              Math.max(...chartData.datasets[0].data)
+                            )
+                          ]
+                        }
+                      </Text>
+                    </View>
+
+                    <View style={{ marginTop: 12, alignItems: "center" }}>
+                      <TouchableOpacity
+                        onPress={() => setShowDataPoints((prev) => !prev)}
+                        style={{
+                          backgroundColor: "#F3F4F6",
+                          paddingVertical: 6,
+                          paddingHorizontal: 12,
+                          borderRadius: 20,
+                          flexDirection: "row",
+                          alignItems: "center",
+                        }}
+                      >
+                        <Ionicons
+                          name={
+                            showDataPoints
+                              ? "chevron-up-outline"
+                              : "chevron-down-outline"
+                          }
+                          size={16}
+                          color="#3B82F6"
+                          style={{ marginRight: 4 }}
+                        />
+                        <Text
+                          style={{
+                            color: "#3B82F6",
+                            fontSize: 12,
+                            fontWeight: "500",
+                          }}
+                        >
+                          {showDataPoints ? "Hide" : "Show"} Data Points
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {showDataPoints && (
+                    <View style={styles.dataTableContainer}>
+                      <Text style={styles.dataTableTitle}>Data Points</Text>
+                      <View style={styles.dataTable}>
+                        {/* Header */}
+                        <View style={styles.tableRoww}>
+                          <View
+                            style={[
+                              styles.tableCell,
+                              styles.tableHeaderr,
+                              { flex: 2 },
+                            ]}
+                          >
+                            <Text style={styles.tableHeaderText}>
+                              {groupBy === "days" ? "Date" : "Month"}
+                            </Text>
+                          </View>
+                          <View
+                            style={[
+                              styles.tableCell,
+                              styles.tableHeader,
+                              { flex: 1 },
+                            ]}
+                          >
+                            <Text style={styles.tableHeaderText}>Amount</Text>
+                          </View>
+                        </View>
+                        {/* Rows */}
+                        {chartData.labels.map((label, index) => (
+                          <View
+                            key={index}
+                            style={[
+                              styles.tableRow,
+                              index % 2 === 0 && styles.tableRowEven,
+                            ]}
+                          >
+                            <View style={[styles.tableCell, { flex: 2 }]}>
+                              <Text style={styles.tableCellText}>{label}</Text>
+                            </View>
+                            <View style={[styles.tableCell, { flex: 1 }]}>
+                              <Text style={styles.tableCellText}>
+                                AED{" "}
+                                {chartData.datasets[0].data[
+                                  index
+                                ].toLocaleString()}
+                              </Text>
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+                </View>
+              ) : (
+                <View style={styles.emptyState}>
+                  <Ionicons
+                    name="analytics-outline"
+                    size={64}
+                    color="#D1D5DB"
+                  />
+                  <Text style={styles.emptyTitle}>No Data Available</Text>
+                  <Text style={styles.emptySubtitle}>
+                    There are no approved amounts to display at this time.
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
 
         {/* Scrollable Table */}
         <ScrollView
@@ -551,6 +981,301 @@ const styles = StyleSheet.create({
     padding: 20,
     fontStyle: "italic",
     color: "#6B7280",
+  },
+  chartTotal: {
+    textAlign: "center",
+    marginTop: 12,
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#1E1E4B",
+  },
+  chartEmpty: {
+    textAlign: "center",
+    color: "#999",
+    fontStyle: "italic",
+    marginVertical: 20,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "#F5F5F5",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E0E0",
+    backgroundColor: "#F0F4F8",
+  },
+  headerContent: {
+    flex: 1,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#1E1E4B",
+    marginBottom: 4,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: "#1E1E4B",
+    fontWeight: "500",
+  },
+  closeButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: "#ffffff",
+  },
+  controlsContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "#F5F5F5",
+  },
+  segmentedControl: {
+    flexDirection: "row",
+    backgroundColor: "#E5E7EB",
+    borderRadius: 20,
+    padding: 4,
+  },
+  segmentButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  segmentButtonLeft: {
+    borderTopLeftRadius: 16,
+    borderBottomLeftRadius: 16,
+  },
+  segmentButtonRight: {
+    borderTopRightRadius: 16,
+    borderBottomRightRadius: 16,
+  },
+  segmentButtonActive: {
+    backgroundColor: "#1E1E4B",
+  },
+  segmentText: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#1E1E4B",
+  },
+  segmentTextActive: {
+    color: "#ffffff",
+  },
+  chartContainer: {
+    flex: 1,
+    backgroundColor: "#F5F5F5",
+  },
+  chartContent: {
+    paddingBottom: 32,
+  },
+  chartWrapper: {
+    paddingHorizontal: 16,
+  },
+  statsContainer: {
+    flexDirection: "row",
+    marginBottom: 16,
+    gap: 8,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: "#ffffff",
+    borderRadius: 6,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+  },
+  statLabel: {
+    fontSize: 13,
+    color: "#1E1E4B",
+    fontWeight: "500",
+    marginBottom: 6,
+  },
+  statValue: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#1E1E4B",
+  },
+  chartSection: {
+    marginBottom: 16,
+    backgroundColor: "#ffffff",
+    borderRadius: 6,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+  },
+  chart: {
+    borderRadius: 6,
+  },
+  insightsContainer: {
+    backgroundColor: "#F0F4F8",
+    borderRadius: 6,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+  },
+  insightsTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#1E1E4B",
+    marginBottom: 12,
+  },
+  insightItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  insightBullet: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#1E1E4B",
+    marginRight: 8,
+  },
+  insightText: {
+    fontSize: 13,
+    color: "#1F2937",
+    fontWeight: "500",
+    flex: 1,
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+    paddingVertical: 64,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1E1E4B",
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: "#6B7280",
+    textAlign: "center",
+    lineHeight: 20,
+    fontStyle: "italic",
+  },
+  // Add these styles to your existing styles object:
+  dataTableContainer: {
+    marginTop: 24,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  dataTableTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#374151",
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+  },
+  dataTable: {
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  tableRoww: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  tableRowEven: {
+    backgroundColor: "#F9FAFB",
+  },
+  tableCell: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    justifyContent: "center",
+  },
+  tableHeaderr: {
+    backgroundColor: "#F3F4F6",
+  },
+  tableHeaderText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  tableCellText: {
+    fontSize: 14,
+    color: "#6B7280",
+    textAlign: "left",
+  },
+  dataControlsContainer: {
+    backgroundColor: "#F8FAFC",
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  rangeControls: {
+    marginBottom: 12,
+  },
+  rangeLabel: {
+    fontSize: 12,
+    color: "#64748B",
+    marginBottom: 6,
+    fontWeight: "500",
+  },
+  rangeButtons: {
+    flexDirection: "row",
+    gap: 6,
+  },
+  rangeButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: "#E2E8F0",
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+  },
+  rangeButtonActive: {
+    backgroundColor: "#1E1E4B",
+    //borderColor: "#3B82F6",
+  },
+  rangeButtonText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#64748B",
+  },
+  rangeButtonTextActive: {
+    color: "#FFFFFF",
+  },
+  dataToggle: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  dataInfoText: {
+    fontSize: 11,
+    color: "#64748B",
+    flex: 1,
+  },
+  toggleButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: "#EBF4FF",
+    borderRadius: 8,
+    gap: 4,
+  },
+  toggleButtonText: {
+    fontSize: 11,
+    color: "#3B82F6",
+    fontWeight: "500",
   },
   // scrollWrapper: {
   //   paddingBottom: 150, // 👈 ensures content doesn't get covered
