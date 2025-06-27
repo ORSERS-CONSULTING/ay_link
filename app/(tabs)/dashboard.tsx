@@ -745,16 +745,20 @@ export default function DashboardScreen() {
                     <View style={styles.dataTableContainer}>
                       <Text style={styles.dataTableTitle}>Data Points</Text>
                       <View style={styles.dataTable}>
-                        {/* Header */}
                         <View style={styles.tableRoww}>
                           <View
                             style={[
                               styles.tableCell,
                               styles.tableHeaderr,
-                              { flex: 2 },
+                              { flex: 1.2, alignItems: "flex-start" }, 
                             ]}
                           >
-                            <Text style={styles.tableHeaderText}>
+                            <Text
+                              style={[
+                                styles.tableHeaderText,
+                                { textAlign: "left" },
+                              ]}
+                            >
                               {groupBy === "days" ? "Date" : "Month"}
                             </Text>
                           </View>
@@ -762,13 +766,20 @@ export default function DashboardScreen() {
                             style={[
                               styles.tableCell,
                               styles.tableHeader,
-                              { flex: 1 },
+                              { flex: 1.8, alignItems: "flex-start" },
                             ]}
                           >
-                            <Text style={styles.tableHeaderText}>Amount</Text>
+                            <Text
+                              style={[
+                                styles.tableHeaderText,
+                                { textAlign: "left" },
+                              ]}
+                            >
+                              Amount
+                            </Text>
                           </View>
                         </View>
-                        {/* Rows */}
+                       
                         {chartData.labels.map((label, index) => (
                           <View
                             key={index}
@@ -777,11 +788,24 @@ export default function DashboardScreen() {
                               index % 2 === 0 && styles.tableRowEven,
                             ]}
                           >
-                            <View style={[styles.tableCell, { flex: 2 }]}>
-                              <Text style={styles.tableCellText}>{label}</Text>
+                            <View style={[styles.tableCell, { flex: 1.2 }]}>
+                             
+                              <Text
+                                style={[
+                                  styles.tableCellText,
+                                  { textAlign: "left" },
+                                ]}
+                              >
+                                {label}
+                              </Text>
                             </View>
-                            <View style={[styles.tableCell, { flex: 1 }]}>
-                              <Text style={styles.tableCellText}>
+                            <View style={[styles.tableCell, { flex: 1.8 }]}>
+                              <Text
+                                style={[
+                                  styles.tableCellText,
+                                  { textAlign: "left" },
+                                ]}
+                              >
                                 AED{" "}
                                 {chartData.datasets[0].data[
                                   index
@@ -1196,10 +1220,11 @@ const styles = StyleSheet.create({
   tableCell: {
     paddingVertical: 12,
     paddingHorizontal: 16,
-    justifyContent: "center",
+    //justifyContent: "center",
   },
   tableHeaderr: {
     backgroundColor: "#F3F4F6",
+    
   },
   tableHeaderText: {
     fontSize: 14,

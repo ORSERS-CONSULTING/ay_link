@@ -152,7 +152,7 @@ export default function RequestDetailScreen() {
   const handleConfirmAction = async () => {
     if (!selectedRequest || isProcessing) return;
     setIsProcessing(true);
-  
+
     try {
       if (selectedAction === "accept") {
         await approveRequest(selectedRequest.id);
@@ -161,36 +161,40 @@ export default function RequestDetailScreen() {
         await rejectRequest(selectedRequest.id, rejectionNote.trim());
         Toast.show({ type: "success", text1: "Request rejected!" });
       }
-  
+
       // Reload request list and chart data
       await loadClientsAndChartData();
-  
+
       // Get the updated request from backend
       const refreshedRequests = await fetchClientRequests();
       const updated = refreshedRequests.find(
         (r: any) => r.request_id.toString() === selectedRequest.id
       );
-  
+
       if (updated) {
         const updatedStatus =
-          updated.status === "APPROVED" ? "Approved" : 
-          updated.status === "REJECTED" ? "Rejected" : 
-          updated.status === "ON HOLD" ? "On hold" : "Pending";
-  
+          updated.status === "APPROVED"
+            ? "Approved"
+            : updated.status === "REJECTED"
+            ? "Rejected"
+            : updated.status === "ON HOLD"
+            ? "On hold"
+            : "Pending";
+
         setLocalStatus(updatedStatus);
         setLocalDecisionTime(updated.decision_time || new Date().toISOString());
         setLocalApprover(updated.approver || "You");
-  
+
         if (updated.rejection_comment) {
           setLocalRejectionNote(updated.rejection_comment);
         }
-  
+
         updateRequestStatus(selectedRequest.id, updatedStatus, {
           decisionTime: updated.decision_time,
           rejectionNote: updated.rejection_comment,
           approver: updated.approver || "You",
         });
-  
+
         // ✅ Update the full selectedRequest state
         setSelectedRequest({
           id: updated.request_id.toString(),
@@ -217,13 +221,12 @@ export default function RequestDetailScreen() {
       console.error(error);
       Toast.show({ type: "error", text1: "Action failed. Please try again." });
     }
-  
+
     setIsProcessing(false);
     setShowConfirm(false);
     setSelectedAction("");
     setRejectionNote("");
   };
-  
 
   const handleSendBack = async () => {
     if (!selectedRequest || !additionalInfo.trim()) {
@@ -330,7 +333,7 @@ export default function RequestDetailScreen() {
               ?.replace(/\s+/g, " ")
               .replace(/\u00A0/g, " ")
               .trim() || "",
-        });        
+        });
       }
 
       const stats = await fetchTransactionStats(selectedRequest.companyCode);
@@ -584,7 +587,150 @@ export default function RequestDetailScreen() {
         </View>
 
         {/* Confirmation Modal */}
-       <Modal
+        <Modal
+          transparent
+          animationType="fade"
+          visible={showConfirm}
+          onRequestClose={() => setShowConfirm(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.confirmModal}>
+              <Text style={styles.confirmText}>
+                {selectedAction === "accept" ? "Approve" : "Reject"}{" "}
+                {clientName}'s request for{" "}
+                <Text style={{ fontWeight: "bold" }}>
+                  AED{" "}
+                  {requestedAmount.toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </Text>
+                ?
+              </Text>
+
+              {selectedAction === "reject" && (
+                <TextInput
+                  placeholder="Optional: reason for rejection"
+                  placeholderTextColor="#999"
+                  style={[styles.rejectionInput, { marginBottom: 15 }]}
+                  value={rejectionNote}
+                  onChangeText={setRejectionNote}
+                  multiline
+                />
+              )}
+
+              <View style={styles.confirmActions}>
+                <TouchableOpacity
+                  style={[
+                    styles.confirmBtn,
+                    { backgroundColor: "rgba(153, 153, 153, 0.1)" },
+                  ]}
+                  onPress={() => {
+                    setShowConfirm(false);
+                    setSelectedAction("");
+                    setRejectionNote("");
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: "#666",
+                      fontWeight: "bold",
+                      fontSize: 14,
+                    }}
+                  >
+                    CANCEL
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.confirmBtn,
+                    {
+                      backgroundColor:
+                        selectedAction === "accept"
+                          ? "rgba(46, 125, 50, 0.1)"
+                          : "rgba(198, 40, 40, 0.1)",
+                    },
+                  ]}
+                  onPress={handleConfirmAction}
+                >
+                  <Text
+                    style={{
+                      color:
+                        selectedAction === "accept" ? "#2E7D32" : "#C62828",
+                      fontWeight: "bold",
+                      fontSize: 14,
+                    }}
+                  >
+                    {selectedAction === "accept" ? "APPROVE" : "REJECT"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal
+          transparent
+          visible={showInfoModal}
+          animationType="fade"
+          onRequestClose={() => setShowInfoModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.confirmModal}>
+              <Text style={styles.confirmText}>
+                Enter additional info required for {clientName}:
+              </Text>
+              <TextInput
+                placeholder="E.g. Upload recent documents"
+                placeholderTextColor="#999"
+                value={additionalInfo}
+                onChangeText={setAdditionalInfo}
+                multiline
+                style={[styles.rejectionInput, { marginBottom: 15 }]}
+              />
+
+              <View style={styles.confirmActions}>
+                <TouchableOpacity
+                  style={[
+                    styles.confirmBtn,
+                    { backgroundColor: "rgba(153, 153, 153, 0.1)" },
+                  ]}
+                  onPress={() => {
+                    setShowInfoModal(false);
+                    setAdditionalInfo("");
+                  }}
+                >
+                  <Text
+                    style={{ color: "#666", fontWeight: "bold", fontSize: 14 }}
+                  >
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.confirmBtn,
+                    { backgroundColor: "rgba(25, 118, 210, 0.1)" },
+                  ]}
+                  onPress={handleSendBack}
+                >
+                  <Text
+                    style={{
+                      color: "#1976D2",
+                      fontWeight: "bold",
+                      fontSize: 14,
+                    }}
+                  >
+                    Send
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* <Modal
                  transparent
                  animationType="slide"
                  visible={showConfirm}
@@ -799,7 +945,7 @@ export default function RequestDetailScreen() {
                      </View>
                    </TouchableOpacity>
                  </TouchableOpacity>
-               </Modal>
+               </Modal> */}
       </ScrollView>
 
       <Toast />

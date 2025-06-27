@@ -447,31 +447,12 @@ export default function HomeScreen() {
         {/* <StatusBar/> */}
         <Modal
           transparent
-          animationType="slide"
+          animationType="fade"
           visible={showConfirm}
           onRequestClose={() => setShowConfirm(false)}
         >
-          <TouchableOpacity
-            activeOpacity={1}
-            onPress={() => setShowConfirm(false)}
-            style={{
-              flex: 1,
-              justifyContent: "flex-end",
-              backgroundColor: "rgba(0, 0, 0, 0.3)",
-            }}
-          >
-            <TouchableOpacity
-              activeOpacity={1}
-              onPress={() => {}}
-              style={{
-                backgroundColor: "#fff",
-                borderTopLeftRadius: 20,
-                borderTopRightRadius: 20,
-                padding: 20,
-                paddingVertical: 45,
-                minHeight: "25%",
-              }}
-            >
+          <View style={styles.modalOverlay}>
+            <View style={styles.confirmModal}>
               <Text style={styles.confirmText}>
                 {selectedAction === "accept" ? "Approve" : "Reject"}{" "}
                 {selectedClient?.clientName}'s request for{" "}
@@ -493,28 +474,14 @@ export default function HomeScreen() {
                   value={rejectionNote}
                   onChangeText={setRejectionNote}
                   multiline
-              
                 />
               )}
 
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  marginTop: 10,
-                  paddingTop:5
-                }}
-              >
+              <View style={styles.confirmActions}>
                 <TouchableOpacity
                   style={[
-                    {
-                      flex: 1,
-                      paddingVertical: 10,
-                      borderRadius: 10,
-                      backgroundColor: "rgba(153, 153, 153, 0.1)",
-                      alignItems: "center",
-                      marginRight: 8,
-                    },
+                    styles.confirmBtn,
+                    { backgroundColor: "rgba(153, 153, 153, 0.1)" },
                   ]}
                   onPress={() => {
                     setShowConfirm(false);
@@ -536,16 +503,12 @@ export default function HomeScreen() {
 
                 <TouchableOpacity
                   style={[
+                    styles.confirmBtn,
                     {
-                      flex: 1,
-                      paddingVertical: 10,
-                      borderRadius: 10,
                       backgroundColor:
                         selectedAction === "accept"
                           ? "rgba(46, 125, 50, 0.1)"
                           : "rgba(198, 40, 40, 0.1)",
-                      alignItems: "center",
-                      marginLeft: 8,
                     },
                   ]}
                   onPress={handleConfirmAction}
@@ -562,36 +525,18 @@ export default function HomeScreen() {
                   </Text>
                 </TouchableOpacity>
               </View>
-            </TouchableOpacity>
-          </TouchableOpacity>
+            </View>
+          </View>
         </Modal>
+
         <Modal
           transparent
-          animationType="slide"
           visible={showInfoModal}
+          animationType="fade"
           onRequestClose={() => setShowInfoModal(false)}
         >
-          <TouchableOpacity
-            activeOpacity={1}
-            onPress={() => setShowInfoModal(false)}
-            style={{
-              flex: 1,
-              justifyContent: "flex-end",
-              backgroundColor: "rgba(0, 0, 0, 0.3)",
-            }}
-          >
-            <TouchableOpacity
-              activeOpacity={1}
-              onPress={() => {}}
-              style={{
-                backgroundColor: "#fff",
-                borderTopLeftRadius: 20,
-                borderTopRightRadius: 20,
-                padding: 20,
-                paddingVertical: 45,
-                minHeight: "25%",
-              }}
-            >
+          <View style={styles.modalOverlay}>
+            <View style={styles.confirmModal}>
               <Text style={styles.confirmText}>
                 Enter additional info required for {selectedClient?.clientName}:
               </Text>
@@ -604,24 +549,11 @@ export default function HomeScreen() {
                 style={[styles.rejectionInput, { marginBottom: 15 }]}
               />
 
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  marginTop: 10,
-                  paddingTop: 5
-                }}
-              >
+              <View style={styles.confirmActions}>
                 <TouchableOpacity
                   style={[
-                    {
-                      flex: 1,
-                      paddingVertical: 10,
-                      borderRadius: 10,
-                      backgroundColor: "rgba(153, 153, 153, 0.1)",
-                      alignItems: "center",
-                      marginRight: 8,
-                    },
+                    styles.confirmBtn,
+                    { backgroundColor: "rgba(153, 153, 153, 0.1)" },
                   ]}
                   onPress={() => {
                     setShowInfoModal(false);
@@ -637,14 +569,8 @@ export default function HomeScreen() {
 
                 <TouchableOpacity
                   style={[
-                    {
-                      flex: 1,
-                      paddingVertical: 10,
-                      borderRadius: 10,
-                      backgroundColor: "rgba(25, 118, 210, 0.1)",
-                      alignItems: "center",
-                      marginLeft: 8,
-                    },
+                    styles.confirmBtn,
+                    { backgroundColor: "rgba(25, 118, 210, 0.1)" },
                   ]}
                   onPress={handleSendBack}
                 >
@@ -659,59 +585,27 @@ export default function HomeScreen() {
                   </Text>
                 </TouchableOpacity>
               </View>
-            </TouchableOpacity>
-          </TouchableOpacity>
+            </View>
+          </View>
         </Modal>
 
         <Modal
           transparent
-          animationType="slide"
+          animationType="fade"
           visible={showLogoutModal}
           onRequestClose={() => setShowLogoutModal(false)}
         >
-          <TouchableOpacity
-            activeOpacity={1}
-            onPress={() => setShowLogoutModal(false)}
-            style={{
-              flex: 1,
-              justifyContent: "flex-end",
-              backgroundColor: "rgba(0, 0, 0, 0.3)",
-            }}
-          >
-            <TouchableOpacity
-              activeOpacity={1}
-              onPress={() => {}}
-              style={{
-                backgroundColor: "#fff",
-                borderTopLeftRadius: 20,
-                borderTopRightRadius: 20,
-                padding: 20,
-                paddingVertical: 45,
-                minHeight: "25%",
-              }}
-            >
+          <View style={styles.modalOverlay}>
+            <View style={styles.confirmModal}>
               <Text style={styles.confirmText}>
                 Are you sure you want to log out?
               </Text>
 
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  marginTop: 10,
-                  paddingTop: 5
-                }}
-              >
+              <View style={styles.confirmActions}>
                 <TouchableOpacity
                   style={[
-                    {
-                      flex: 1,
-                      paddingVertical: 10,
-                      borderRadius: 10,
-                      backgroundColor: "rgba(153, 153, 153, 0.1)",
-                      alignItems: "center",
-                      marginRight: 8,
-                    },
+                    styles.confirmBtn,
+                    { backgroundColor: "rgba(153, 153, 153, 0.1)" },
                   ]}
                   onPress={() => setShowLogoutModal(false)}
                 >
@@ -724,14 +618,8 @@ export default function HomeScreen() {
 
                 <TouchableOpacity
                   style={[
-                    {
-                      flex: 1,
-                      paddingVertical: 10,
-                      borderRadius: 10,
-                      backgroundColor: "rgba(255, 59, 48, 0.1)",
-                      alignItems: "center",
-                      marginLeft: 8,
-                    },
+                    styles.confirmBtn,
+                    { backgroundColor: "rgba(255, 59, 48, 0.1)" },
                   ]}
                   onPress={handleLogoutConfirm}
                 >
@@ -746,8 +634,8 @@ export default function HomeScreen() {
                   </Text>
                 </TouchableOpacity>
               </View>
-            </TouchableOpacity>
-          </TouchableOpacity>
+            </View>
+          </View>
         </Modal>
 
         {/* Title Row with Search Icon */}
