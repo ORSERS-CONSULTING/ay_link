@@ -21,7 +21,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { fetchClientRequests } from "@/utils/api";
+import { fetchClientRequests2 } from "@/utils/api";
 import Toast from "react-native-toast-message";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSelectedRequest } from "@/context/SelectedRequestContext";
@@ -51,7 +51,7 @@ type Log = {
 export default function HistoryScreen() {
   const [logs, setLogs] = useState<Log[]>([]);
   const [filter, setFilter] = useState("All");
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [search, setSearch] = useState("");
   const router = useRouter();
@@ -64,6 +64,23 @@ export default function HistoryScreen() {
   const searchInputRef = useRef<TextInput>(null);
   const [isNavigating, setIsNavigating] = useState(false);
 
+  const isToday = (date: Date) => {
+  const today = new Date();
+  return (
+    date.getDate() === today.getDate() &&
+    date.getMonth() === today.getMonth() &&
+    date.getFullYear() === today.getFullYear()
+  );
+};
+  const formatDate = (date: Date) => {
+        const day = String(date.getDate()).padStart(2, "0");
+        const month = String(date.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
+        const year = date.getFullYear();
+        return `${day}-${month}-${year}`;
+      };
+
+            //console.log("Datefil", formatDate(selectedDate));
+
   useEffect(() => {
     if (showSearch) {
       setTimeout(() => searchInputRef.current?.focus(), 100);
@@ -73,7 +90,7 @@ export default function HistoryScreen() {
   const loadLogs = async () => {
     setRefreshing(true);
     try {
-      const response = await fetchClientRequests();
+      const response = await fetchClientRequests2(formatDate(selectedDate));
       const filtered = response.filter(
         (item: any) =>
           item.status?.toLowerCase() === "approved" ||
@@ -101,6 +118,7 @@ export default function HistoryScreen() {
             .trim() || "", // ✅ Add this
       }));
 
+      
       setLogs(
         formatted.sort(
           (a, b) =>
@@ -114,11 +132,10 @@ export default function HistoryScreen() {
     }
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      loadLogs();
-    }, [])
-  );
+  useEffect(() => {
+  loadLogs();
+}, [selectedDate]);
+
 
   const capitalize = (text: string | undefined | null) =>
     text ? text.charAt(0).toUpperCase() + text.slice(1).toLowerCase() : "";
@@ -130,17 +147,12 @@ export default function HistoryScreen() {
         .includes(search.toLowerCase());
       const statusMatch = filter === "All" || log.status === filter;
 
-      const logDate = new Date(log.decisionTime).toDateString();
-      const selected = selectedDate
-        ? new Date(selectedDate).toDateString()
-        : new Date().toDateString();
+      
 
-      const dateMatch = logDate === selected;
-
-      return matchesSearch && statusMatch && dateMatch;
+      return matchesSearch && statusMatch;
     });
   }, [logs, search, filter, selectedDate]);
-
+  // console.log("date", selectedDate);
   const formatSubmittedTime = (timestamp: string) => {
     const now = new Date();
     const time = new Date(timestamp);
@@ -181,7 +193,7 @@ export default function HistoryScreen() {
                 {item.clientName}
               </Text>
               <Text style={styles.timeText}>
-                {formatSubmittedTime(item.decisionTime)}
+                {formatSubmittedTime(item.timestamp)}
               </Text>
             </View>
             <Text style={styles.label}>
@@ -557,23 +569,13 @@ export default function HistoryScreen() {
           </TouchableOpacity>
         </View>
 
-        {selectedDate && (
-          <TouchableOpacity
-            onPress={() => setSelectedDate(null)}
-            style={{ marginBottom: 10 }}
-          >
-            <Text
-              style={{
-                textAlign: "center",
-                fontSize: 13,
-                color: "#999",
-                textDecorationLine: "underline",
-              }}
-            >
-              Clear Date Filter
-            </Text>
-          </TouchableOpacity>
-        )}
+        {!isToday(selectedDate) && (
+  <TouchableOpacity onPress={() => setSelectedDate(new Date())} style={{ marginBottom: 10 }}>
+    <Text style={{ textAlign: "center", fontSize: 13, color: "#999", textDecorationLine: "underline" }}>
+      Clear Date Filter
+    </Text>
+  </TouchableOpacity>
+)}
 
         {filteredLogs.length === 0 && (
           <Text

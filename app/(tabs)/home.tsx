@@ -284,24 +284,16 @@ export default function HomeScreen() {
   };
 
   const getTimeAgo = (timestamp: string) => {
-    const localTimestamp = timestamp.replace(/Z$/, ""); // Remove 'Z' if wrongly there
-    const date = new Date(localTimestamp); // Treat as local time
-    const now = new Date();
+  const date = new Date(timestamp);
+  const now = new Date();
 
-    const isSameDay =
-      date.getFullYear() === now.getFullYear() &&
-      date.getMonth() === now.getMonth() &&
-      date.getDate() === now.getDate();
+  const isSameDay = date.toDateString() === now.toDateString();
 
-    if (isSameDay) {
-      return date.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    } else {
-      return date.toLocaleDateString("en-GB");
-    }
-  };
+  return isSameDay
+    ? date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : date.toLocaleDateString("en-GB");
+};
+
 
   const handleLogoutPress = () => {
     setShowLogoutModal(true);
@@ -645,7 +637,7 @@ export default function HomeScreen() {
             flexDirection: "row",
             justifyContent: "space-between",
             alignItems: "center",
-            marginBottom: 2,
+            marginBottom: 16,
           }}
         >
           {/* <Ionicons name="open-outline" size={20} color="#1E1E4B" /> */}
@@ -701,7 +693,7 @@ export default function HomeScreen() {
         {/* <View>Welcome Mr.{}</View> */}
 
         {/* Metrics for Date */}
-        <View
+        {/* <View
           style={{
             flexDirection: "row",
             alignItems: "center",
@@ -723,10 +715,10 @@ export default function HomeScreen() {
                 : new Date().toLocaleDateString()}
             </Text>
           </TouchableOpacity>
-        </View>
+        </View> */}
 
         {/* Clear Date Filter */}
-        {selectedDate && (
+        {/* {selectedDate && (
           <TouchableOpacity
             onPress={() => setSelectedDate(null)}
             style={{ marginBottom: 10 }}
@@ -832,7 +824,7 @@ export default function HomeScreen() {
               }}
             />
           )
-        ) : null}
+        ) : null} */}
 
         {/* Search Input */}
         {showSearch && (

@@ -16,7 +16,7 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-import { fetchClientRequests } from "@/utils/api";
+import { fetchClientRequests2 } from "@/utils/api";
 import Toast from "react-native-toast-message";
 import { useFocusEffect } from "@react-navigation/native";
 import * as ScreenOrientation from "expo-screen-orientation";
@@ -42,7 +42,7 @@ type Log = {
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const [logs, setLogs] = useState<Log[]>([]);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const [showChartModal, setShowChartModal] = useState(false);
@@ -53,6 +53,7 @@ export default function DashboardScreen() {
     days: 30,
     months: 12,
   });
+  const [tempDate, setTempDate] = useState(new Date());
 
   const { width } = useWindowDimensions();
   const isLandscape = width > 700;
@@ -62,10 +63,23 @@ export default function DashboardScreen() {
     days: 30,
     months: 12,
   };
-
+  const formatDate = (date: Date) => {
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
+  const isToday = (date: Date) => {
+    const today = new Date();
+    return (
+      date.getDate() === today.getDate() &&
+      date.getMonth() === today.getMonth() &&
+      date.getFullYear() === today.getFullYear()
+    );
+  };
   const loadLogs = async () => {
     try {
-      const response = await fetchClientRequests();
+      const response = await fetchClientRequests2(formatDate(selectedDate));
       const filtered = response.filter(
         (item: any) =>
           item.status?.toLowerCase() === "approved" ||
@@ -97,11 +111,9 @@ export default function DashboardScreen() {
     }
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      loadLogs();
-    }, [])
-  );
+  useEffect(() => {
+    loadLogs();
+  }, [selectedDate]);
 
   useEffect(() => {
     // Allow both landscape and portrait for this screen
@@ -118,13 +130,13 @@ export default function DashboardScreen() {
   const capitalize = (text: string | undefined | null) =>
     text ? text.charAt(0).toUpperCase() + text.slice(1).toLowerCase() : "";
 
-  const filteredLogs = useMemo(() => {
-    return logs.filter((log) => {
-      const logDate = new Date(log.decisionTime).toDateString(); // ✅ uses decision date
-      const effectiveDate = selectedDate || new Date(); // ✅ use today's date if none selected
-      return logDate === effectiveDate.toDateString();
-    });
-  }, [logs, selectedDate]);
+  // const filteredLogs = useMemo(() => {
+  //   return logs.filter((log) => {
+  //     const logDate = new Date(log.decisionTime).toDateString(); // ✅ uses decision date
+  //     const effectiveDate = selectedDate || new Date(); // ✅ use today's date if none selected
+  //     return logDate === effectiveDate.toDateString();
+  //   });
+  // }, [logs, selectedDate]);
 
   const approvedLogs = useMemo(
     () => logs.filter((log) => log.status === "Approved" && log.decisionTime),
@@ -242,7 +254,7 @@ export default function DashboardScreen() {
               </tr>
             </thead>
             <tbody>
-              ${filteredLogs
+              ${logs
                 .map((log) => {
                   const submittedAt = new Date(log.timestamp).toLocaleString(
                     "en-GB",
@@ -346,9 +358,9 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </View>
 
-        {selectedDate && (
+        {!isToday(selectedDate) && (
           <TouchableOpacity
-            onPress={() => setSelectedDate(null)}
+            onPress={() => setSelectedDate(new Date())}
             style={{ marginBottom: 10 }}
           >
             <Text
@@ -364,94 +376,89 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         )}
 
-        {showDatePicker &&
-          (Platform.OS === "ios" ? (
-            <Modal
-              transparent
-              animationType="fade"
-              onRequestClose={() => setShowDatePicker(false)}
-            >
-              <TouchableOpacity
-                activeOpacity={1}
-                onPressOut={() => setShowDatePicker(false)}
-                style={{
-                  flex: 1,
-                  justifyContent: "flex-end",
-                  backgroundColor: "rgba(0, 0, 0, 0.3)",
-                }}
-              >
+        {Platform.OS === "ios"
+          ? showDatePicker && (
+              <Modal transparent animationType="slide">
                 <TouchableOpacity
                   activeOpacity={1}
                   style={{
-                    backgroundColor: "#fff",
-                    padding: 16,
-                    borderTopLeftRadius: 16,
-                    borderTopRightRadius: 16,
+                    flex: 1,
+                    justifyContent: "flex-end",
+                    backgroundColor: "rgba(0, 0, 0, 0.5)",
                   }}
+                  onPressOut={() => setShowDatePicker(false)}
                 >
-                  <DateTimePicker
-                    value={selectedDate || new Date()}
-                    mode="date"
-                    display="spinner"
-                    onChange={(event, date) => {
-                      if (date) setSelectedDate(date);
-                    }}
-                    themeVariant="light"
-                    style={{ backgroundColor: "#fff" }}
-                  />
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      marginTop: 12,
-                    }}
+                  <TouchableOpacity
+                    activeOpacity={1}
+                    style={{ backgroundColor: "#fff", padding: 20 }}
                   >
-                    <TouchableOpacity
-                      onPress={() => setShowDatePicker(false)}
-                      style={{
-                        flex: 1,
-                        paddingVertical: 10,
-                        borderRadius: 10,
-                        backgroundColor: "#ccc",
-                        alignItems: "center",
-                        marginRight: 8,
+                    <DateTimePicker
+                      value={tempDate}
+                      mode="date"
+                      display="spinner"
+                      onChange={(event, date) => {
+                        if (date) setTempDate(date); // only updates tempDate while scrolling
                       }}
-                    >
-                      <Text style={{ color: "#000", fontWeight: "bold" }}>
-                        Cancel
-                      </Text>
-                    </TouchableOpacity>
+                      themeVariant="light"
+                    />
 
-                    <TouchableOpacity
-                      onPress={() => setShowDatePicker(false)}
+                    <View
                       style={{
-                        flex: 1,
-                        paddingVertical: 10,
-                        borderRadius: 10,
-                        backgroundColor: "#1E1E4B",
-                        alignItems: "center",
-                        marginLeft: 8,
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        marginTop: 12,
                       }}
                     >
-                      <Text style={{ color: "#fff", fontWeight: "bold" }}>
-                        Done
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
+                      <TouchableOpacity
+                        onPress={() => setShowDatePicker(false)}
+                        style={{
+                          flex: 1,
+                          paddingVertical: 10,
+                          borderRadius: 10,
+                          backgroundColor: "#ccc",
+                          alignItems: "center",
+                          marginRight: 8,
+                        }}
+                      >
+                        <Text style={{ color: "#000", fontWeight: "bold" }}>
+                          Cancel
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        onPress={() => {
+                          setSelectedDate(tempDate); // ✅ only update and reload on Done
+                          setShowDatePicker(false);
+                        }}
+                        style={{
+                          flex: 1,
+                          paddingVertical: 10,
+                          borderRadius: 10,
+                          backgroundColor: "#1E1E4B",
+                          alignItems: "center",
+                          marginLeft: 8,
+                        }}
+                      >
+                        <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                          Done
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </TouchableOpacity>
                 </TouchableOpacity>
-              </TouchableOpacity>
-            </Modal>
-          ) : (
-            <DateTimePicker
-              value={selectedDate || new Date()}
-              mode="date"
-              display="default"
-              onChange={(event, date) => {
-                setShowDatePicker(false);
-                if (date) setSelectedDate(date);
-              }}
-            />
-          ))}
+              </Modal>
+            )
+          : showDatePicker && (
+              <DateTimePicker
+                value={selectedDate}
+                mode="date"
+                display="default"
+                onChange={(event, date) => {
+                  setShowDatePicker(false);
+                  if (date) setSelectedDate(date); // ✅ directly update on Android
+                }}
+              />
+            )}
 
         <Modal
           visible={showChartModal}
@@ -750,7 +757,7 @@ export default function DashboardScreen() {
                             style={[
                               styles.tableCell,
                               styles.tableHeaderr,
-                              { flex: 1.2, alignItems: "flex-start" }, 
+                              { flex: 1.2, alignItems: "flex-start" },
                             ]}
                           >
                             <Text
@@ -779,7 +786,7 @@ export default function DashboardScreen() {
                             </Text>
                           </View>
                         </View>
-                       
+
                         {chartData.labels.map((label, index) => (
                           <View
                             key={index}
@@ -789,7 +796,6 @@ export default function DashboardScreen() {
                             ]}
                           >
                             <View style={[styles.tableCell, { flex: 1.2 }]}>
-                             
                               <Text
                                 style={[
                                   styles.tableCellText,
@@ -869,10 +875,10 @@ export default function DashboardScreen() {
               </View>
 
               {/* Table Rows */}
-              {filteredLogs.length === 0 ? (
+              {logs.length === 0 ? (
                 <Text style={styles.noDataText}>No records found.</Text>
               ) : (
-                filteredLogs.map((log, index) => (
+                logs.map((log, index) => (
                   <View
                     key={log.id}
                     style={[
@@ -1224,7 +1230,6 @@ const styles = StyleSheet.create({
   },
   tableHeaderr: {
     backgroundColor: "#F3F4F6",
-    
   },
   tableHeaderText: {
     fontSize: 14,

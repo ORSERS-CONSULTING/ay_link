@@ -4,14 +4,37 @@ import Constants from "expo-constants";
 const token = Constants.expoConfig?.extra?.API_SECRET;
 
 const BASE_URL =
-  "https://p7erb4tc3lzuycgznzjfbcxsiy.apigateway.me-dubai-1.oci.customer-oci.com/main";
+  "https://gv4andgjujwej5rfjwo2fpdunq.apigateway.me-dubai-1.oci.customer-oci.com/creditapproval";
 
-  console.log("🔐 API TOKEN AT RUNTIME:", token);
+console.log("🔐 API TOKEN AT RUNTIME:", token);
 console.log("🌐 BASE_URL AT RUNTIME:", BASE_URL);
 
 export const fetchClientRequests = async () => {
   //console.log(token, "token");
   const res = await fetch(`${BASE_URL}/requests`, {
+    headers: {
+      "X-Api-Key": `${token}`,
+    },
+  });
+  if (!res.ok) {
+    throw new Error("Failed to fetch client requests");
+  }
+
+  const data = await res.json();
+
+  return data.items.map((item: any) => ({
+    ...item,
+    clientName: item.clientName?.trim(),
+    companyCode: item.companyCode?.trim(),
+    departmentName: item.departmentName?.trim(),
+    status: item.status?.trim(),
+    approver: item.approver?.trim(),
+  }));
+};
+
+export const fetchClientRequests2 = async (datefil: string) => {
+  //console.log(token, "token");
+  const res = await fetch(`${BASE_URL}/filteredrequests`, {
     headers: {
       "X-Api-Key": `${token}`,
     },
@@ -117,7 +140,7 @@ export async function sendBackRequest(requestId: string, remarks: string) {
 }
 
 export async function fetchTransactionStats(companyCode: string) {
-  const url = `${BASE_URL}/transactionNumber?company_code=${companyCode}`;
+  const url = `${BASE_URL}/transactionnumber?company_code=${companyCode}`;
 
   const res = await fetch(url, {
     headers: {
@@ -127,10 +150,9 @@ export async function fetchTransactionStats(companyCode: string) {
   if (!res.ok) throw new Error("Failed to fetch transaction stats");
 
   const data = await res.json();
-    console.log("📥 Fetching transaction stats:", data);
+  console.log("📥 Fetching transaction stats:", data);
 
   return data.items?.[0] ?? { invoice_count: 0, transaction_count: 0 };
-
 }
 
 export async function loginUser(username: string, password: string) {

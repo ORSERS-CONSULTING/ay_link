@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
     // elevation: 5,
   },
   biometricIconImage: {
-    width:47,
+    width: 47,
     height: 50,
     resizeMode: "stretch",
     tintColor: "#1E1E4B",
