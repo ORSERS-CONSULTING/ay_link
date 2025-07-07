@@ -16,6 +16,8 @@ import { Image } from "react-native";
 import * as LocalAuthentication from "expo-local-authentication";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { loginUser } from "@/utils/api";
+import useAppAuth from "@/utils/useAppAuth";
+
 // No longer importing MaterialCommunityIcons if you're using Image component for biometric icon
 // import { MaterialCommunityIcons } from "@expo/vector-icons";
 
@@ -38,7 +40,7 @@ export default function LoginScreen() {
   const [blocked, setBlocked] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showBiometricsOption, setShowBiometricsOption] = useState(false); // New state to control visibility
-
+const {fetchAccessToken} = useAppAuth()
   // --- NEW: Check biometric availability on component mount ---
   useEffect(() => {
     const checkBiometricAvailability = async () => {
@@ -175,7 +177,7 @@ export default function LoginScreen() {
     }
 
     try {
-      const response = await loginUser(email, password);
+      const response = await loginUser(fetchAccessToken,email, password);
 
       if (response.success) {
         // --- NEW LOGIC FOR BIOMETRICS ---

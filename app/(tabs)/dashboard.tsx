@@ -16,13 +16,14 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-import { fetchClientRequests2 } from "@/utils/api";
+import { fetchClientRequests, fetchClientRequests2 } from "@/utils/api";
 import Toast from "react-native-toast-message";
 import { useFocusEffect } from "@react-navigation/native";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { useWindowDimensions } from "react-native";
 import LineChart from "react-native-chart-kit/dist/line-chart";
 import { Dimensions } from "react-native";
+import useAppAuth from "@/utils/useAppAuth";
 
 type Log = {
   reason: string;
@@ -42,6 +43,8 @@ type Log = {
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const [logs, setLogs] = useState<Log[]>([]);
+  const [allLogs, setAllLogs] = useState<Log[]>([]); 
+
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -63,6 +66,7 @@ export default function DashboardScreen() {
     days: 30,
     months: 12,
   };
+  
   const formatDate = (date: Date) => {
     const day = String(date.getDate()).padStart(2, "0");
     const month = String(date.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
@@ -77,9 +81,11 @@ export default function DashboardScreen() {
       date.getFullYear() === today.getFullYear()
     );
   };
+    const { fetchAccessToken } = useAppAuth();
+
   const loadLogs = async () => {
     try {
-      const response = await fetchClientRequests2(formatDate(selectedDate));
+      const response = await fetchClientRequests2(fetchAccessToken,formatDate(selectedDate));
       const filtered = response.filter(
         (item: any) =>
           item.status?.toLowerCase() === "approved" ||
@@ -111,6 +117,7 @@ export default function DashboardScreen() {
     }
   };
 
+
   useEffect(() => {
     loadLogs();
   }, [selectedDate]);
@@ -126,6 +133,47 @@ export default function DashboardScreen() {
       );
     };
   }, []);
+  const loadAllLogs = async () => {
+  try {
+    const response = await fetchClientRequests(fetchAccessToken); // no date filter
+    // format & filter similarly to loadLogs
+    const filtered = response.filter(
+      (item: any) =>
+        item.status?.toLowerCase() === "approved" ||
+        item.status?.toLowerCase() === "rejected"
+    );
+    const formatted: Log[] = filtered.map((item: any) => ({
+      id: item.request_id.toString(),
+      clientName: item.company_name.trim(),
+      requestedAmount: item.credit_amount,
+      currentBalance: 0,
+      status: capitalize(item.status),
+      timestamp: item.requested_at,
+      decisionTime: item.decision_time || "",
+      approver: item.approver || "",
+      rejectionNote: item.rejection_comment || "",
+      departmentName: item.department_name || "N/A",
+      companyCode: item.company_code || "N/A",
+      reason: item.reason || "",
+    }));
+
+    setAllLogs(
+      formatted.sort(
+        (a, b) =>
+          new Date(b.decisionTime).getTime() - new Date(a.decisionTime).getTime()
+      )
+    );
+  } catch (e) {
+    Toast.show({ type: "error", text1: "Failed to load all logs." });
+  }
+};
+
+useEffect(() => {
+  loadAllLogs();
+}, []);
+
+
+
 
   const capitalize = (text: string | undefined | null) =>
     text ? text.charAt(0).toUpperCase() + text.slice(1).toLowerCase() : "";
@@ -138,13 +186,16 @@ export default function DashboardScreen() {
   //   });
   // }, [logs, selectedDate]);
 
-  const approvedLogs = useMemo(
-    () => logs.filter((log) => log.status === "Approved" && log.decisionTime),
-    [logs]
-  );
+ const approvedLogs = useMemo(
+  () => allLogs.filter((log) => log.status === "Approved" && log.decisionTime),
+  [allLogs]
+);
+
 
   const chartData = useMemo(() => {
     const grouped: Record<string, number> = {};
+
+
 
     approvedLogs.forEach((log) => {
       const date = new Date(log.decisionTime);
@@ -188,7 +239,12 @@ export default function DashboardScreen() {
       showingDataPoints: finalKeys.length,
     };
   }, [approvedLogs, groupBy, showAllData, customRange]);
-
+const chartWidthPerDataPoint = 60; 
+// Calculate chart width based on labels count
+const chartWidth = Math.max(
+  chartData.labels.length * chartWidthPerDataPoint,
+  windowWidth - 48
+);
   const handleExportPDF = async () => {
     const formattedDate = selectedDate
       ? new Date(selectedDate).toLocaleDateString("en-GB", {
@@ -482,7 +538,11 @@ export default function DashboardScreen() {
                 <Ionicons name="close" size={24} color="#6B7280" />
               </TouchableOpacity>
             </View>
-
+<ScrollView
+    style={{ flex: 1 }}
+    contentContainerStyle={{paddingBottom: 24 }}
+    showsVerticalScrollIndicator={false}
+  >
             {/* Toggle Controls */}
             <View style={styles.controlsContainer}>
               <View style={styles.segmentedControl}>
@@ -645,7 +705,7 @@ export default function DashboardScreen() {
                     >
                       <LineChart
                         data={chartData}
-                        width={windowWidth - 48}
+                        width={chartWidth}
                         height={280}
                         //yAxisLabel="د.إ"
                         fromZero
@@ -838,7 +898,9 @@ export default function DashboardScreen() {
                 </View>
               )}
             </ScrollView>
+            </ScrollView>
           </SafeAreaView>
+
         </Modal>
 
         {/* Scrollable Table */}

@@ -13,7 +13,7 @@ interface UseAuthReturn {
   accessToken: string | null;
   loading: boolean;
   error: string | null;
-  fetchAccessToken: () => Promise<string | null>;
+  fetchAccessToken: (endpointSuffix: string) => Promise<string | null>;
 }
 
 const useAppAuth = (): UseAuthReturn => {
@@ -24,11 +24,16 @@ const useAppAuth = (): UseAuthReturn => {
   const clientId = Constants.expoConfig?.extra?.CLIENT_ID;
   const clientSecret = Constants.expoConfig?.extra?.CLIENT_SECRET;
   const tokenUrl = Constants.expoConfig?.extra?.ACCESS_TOKEN_URL;
-  const scope = Constants.expoConfig?.extra?.SCOPE2;
+  const baseScopeUrl = Constants.expoConfig?.extra?.BASE_SCOPE_URL;
 
-  const fetchAccessToken = async (): Promise<string | null> => {
+  const fetchAccessToken = async (
+    endpointSuffix: string
+  ): Promise<string | null> => {
     setLoading(true);
     setError(null);
+
+    const fullScope = `${baseScopeUrl}/${endpointSuffix}`;
+    console.log("🔑 Requesting scope:", fullScope);
 
     try {
       const response = await fetch(tokenUrl, {
@@ -42,7 +47,7 @@ const useAppAuth = (): UseAuthReturn => {
         },
         body: new URLSearchParams({
           grant_type: "client_credentials",
-          scope,
+          scope: fullScope,
         }).toString(),
       });
 

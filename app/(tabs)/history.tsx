@@ -27,6 +27,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSelectedRequest } from "@/context/SelectedRequestContext";
 import { useFocusEffect } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import useAppAuth from "@/utils/useAppAuth";
 
 const statuses = ["All", "Approved", "Rejected"];
 
@@ -65,32 +66,37 @@ export default function HistoryScreen() {
   const [isNavigating, setIsNavigating] = useState(false);
 
   const isToday = (date: Date) => {
-  const today = new Date();
-  return (
-    date.getDate() === today.getDate() &&
-    date.getMonth() === today.getMonth() &&
-    date.getFullYear() === today.getFullYear()
-  );
-};
+    const today = new Date();
+    return (
+      date.getDate() === today.getDate() &&
+      date.getMonth() === today.getMonth() &&
+      date.getFullYear() === today.getFullYear()
+    );
+  };
   const formatDate = (date: Date) => {
-        const day = String(date.getDate()).padStart(2, "0");
-        const month = String(date.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
-        const year = date.getFullYear();
-        return `${day}-${month}-${year}`;
-      };
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
 
-            //console.log("Datefil", formatDate(selectedDate));
+  //console.log("Datefil", formatDate(selectedDate));
 
   useEffect(() => {
     if (showSearch) {
       setTimeout(() => searchInputRef.current?.focus(), 100);
     }
   }, [showSearch]);
+  const { fetchAccessToken } = useAppAuth();
 
   const loadLogs = async () => {
     setRefreshing(true);
     try {
-      const response = await fetchClientRequests2(formatDate(selectedDate));
+      console.log("hello");
+      const response = await fetchClientRequests2(
+        fetchAccessToken,
+        formatDate(selectedDate)
+      );
       const filtered = response.filter(
         (item: any) =>
           item.status?.toLowerCase() === "approved" ||
@@ -118,7 +124,6 @@ export default function HistoryScreen() {
             .trim() || "", // ✅ Add this
       }));
 
-      
       setLogs(
         formatted.sort(
           (a, b) =>
@@ -133,9 +138,8 @@ export default function HistoryScreen() {
   };
 
   useEffect(() => {
-  loadLogs();
-}, [selectedDate]);
-
+    loadLogs();
+  }, [selectedDate]);
 
   const capitalize = (text: string | undefined | null) =>
     text ? text.charAt(0).toUpperCase() + text.slice(1).toLowerCase() : "";
@@ -146,8 +150,6 @@ export default function HistoryScreen() {
         .toLowerCase()
         .includes(search.toLowerCase());
       const statusMatch = filter === "All" || log.status === filter;
-
-      
 
       return matchesSearch && statusMatch;
     });
@@ -570,12 +572,22 @@ export default function HistoryScreen() {
         </View>
 
         {!isToday(selectedDate) && (
-  <TouchableOpacity onPress={() => setSelectedDate(new Date())} style={{ marginBottom: 10 }}>
-    <Text style={{ textAlign: "center", fontSize: 13, color: "#999", textDecorationLine: "underline" }}>
-      Clear Date Filter
-    </Text>
-  </TouchableOpacity>
-)}
+          <TouchableOpacity
+            onPress={() => setSelectedDate(new Date())}
+            style={{ marginBottom: 10 }}
+          >
+            <Text
+              style={{
+                textAlign: "center",
+                fontSize: 13,
+                color: "#999",
+                textDecorationLine: "underline",
+              }}
+            >
+              Clear Date Filter
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {filteredLogs.length === 0 && (
           <Text

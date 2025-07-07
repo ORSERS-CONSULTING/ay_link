@@ -1,21 +1,31 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
+import useAppAuth from "./useAppAuth";
+import { useEffect } from "react";
 
 const token = Constants.expoConfig?.extra?.API_SECRET;
 
 const BASE_URL =
   "https://gv4andgjujwej5rfjwo2fpdunq.apigateway.me-dubai-1.oci.customer-oci.com/creditapproval";
 
-console.log("🔐 API TOKEN AT RUNTIME:", token);
-console.log("🌐 BASE_URL AT RUNTIME:", BASE_URL);
+// console.log("🔐 API TOKEN AT RUNTIME:", token);
+// console.log("🌐 BASE_URL AT RUNTIME:", BASE_URL);
 
-export const fetchClientRequests = async () => {
-  //console.log(token, "token");
+// fetchClientRequests.ts
+export const fetchClientRequests = async (
+  fetchAccessToken: (scope: string) => Promise<string | null>
+) => {
+  const token = await fetchAccessToken("requests");
+  // console.log(token, "token");
+
+  if (!token) throw new Error("No token received");
+
   const res = await fetch(`${BASE_URL}/requests`, {
     headers: {
-      "X-Api-Key": `${token}`,
+      Authorization: `Bearer ${token}`,
     },
   });
+
   if (!res.ok) {
     throw new Error("Failed to fetch client requests");
   }
@@ -32,18 +42,30 @@ export const fetchClientRequests = async () => {
   }));
 };
 
-export const fetchClientRequests2 = async (datefil: string) => {
-  //console.log(token, "token");
-  const res = await fetch(`${BASE_URL}/filteredrequests`, {
-    headers: {
-      "X-Api-Key": `${token}`,
-    },
-  });
+export const fetchClientRequests2 = async (
+  fetchAccessToken: (scope: string) => Promise<string | null>,
+  datefil: string
+) => {
+  // console.log(token, "token");
+  // console.log("Calling fetchAccessToken...");
+  const token = await fetchAccessToken("filteredrequests");
+  if (!token) throw new Error("No token received");
+
+  const res = await fetch(
+    `${BASE_URL}/filteredrequests?datefil=${encodeURIComponent(datefil)}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
   if (!res.ok) {
     throw new Error("Failed to fetch client requests");
   }
 
   const data = await res.json();
+  //console.log("tesst",data);
 
   return data.items.map((item: any) => ({
     ...item,
@@ -57,8 +79,14 @@ export const fetchClientRequests2 = async (datefil: string) => {
 
 // ✅ Updated to safely handle 200 OK with or without JSON
 
-export async function approveRequest(requestId: string) {
+export async function approveRequest(
+  fetchAccessToken: (scope: string) => Promise<string | null>,
+  requestId: string
+) {
+  const token = await fetchAccessToken("approve");
+  console.log("tjnr", token);
   const approver = await AsyncStorage.getItem("email");
+  console.log("approver", approver);
   const url = `${BASE_URL}/approve?request_id=${requestId}&approver_name=${encodeURIComponent(
     approver || "unknown"
   )}`;
@@ -68,7 +96,7 @@ export async function approveRequest(requestId: string) {
   const res = await fetch(url, {
     method: "POST",
     headers: {
-      "X-Api-Key": `${token}`,
+      Authorization: `Bearer ${token}`,
     },
   });
 
@@ -86,8 +114,14 @@ export async function approveRequest(requestId: string) {
   }
 }
 
-export async function rejectRequest(requestId: string, comment: string) {
+export async function rejectRequest(
+  fetchAccessToken: (scope: string) => Promise<string | null>,
+  requestId: string,
+  comment: string
+) {
   const approver = await AsyncStorage.getItem("email");
+  const token = await fetchAccessToken("reject");
+
   const url = `${BASE_URL}/reject?request_id=${requestId}&rejection_comment=${encodeURIComponent(
     comment
   )}&approver_name=${encodeURIComponent(approver || "unknown")}`;
@@ -96,7 +130,7 @@ export async function rejectRequest(requestId: string, comment: string) {
   const res = await fetch(url, {
     method: "POST",
     headers: {
-      "X-Api-Key": `${token}`,
+      Authorization: `Bearer ${token}`,
     },
   });
 
@@ -114,14 +148,20 @@ export async function rejectRequest(requestId: string, comment: string) {
   }
 }
 
-export async function sendBackRequest(requestId: string, remarks: string) {
+export async function sendBackRequest(
+  fetchAccessToken: (scope: string) => Promise<string | null>,
+  requestId: string,
+  remarks: string
+) {
+  const token = await fetchAccessToken("sendBack");
+
   const url = `${BASE_URL}/sendBack?request_id=${requestId}&returned_remarks=${encodeURIComponent(
     remarks
   )}`;
   const res = await fetch(url, {
     method: "POST",
     headers: {
-      "X-Api-Key": `${token}`,
+      Authorization: `Bearer ${token}`,
     },
   });
 
@@ -139,12 +179,16 @@ export async function sendBackRequest(requestId: string, remarks: string) {
   }
 }
 
-export async function fetchTransactionStats(companyCode: string) {
+export async function fetchTransactionStats(
+  fetchAccessToken: (scope: string) => Promise<string | null>,
+  companyCode: string
+) {
   const url = `${BASE_URL}/transactionnumber?company_code=${companyCode}`;
+  const token = await fetchAccessToken("transactionnumber");
 
   const res = await fetch(url, {
     headers: {
-      "X-Api-Key": `${token}`,
+      Authorization: `Bearer ${token}`,
     },
   });
   if (!res.ok) throw new Error("Failed to fetch transaction stats");
@@ -155,14 +199,20 @@ export async function fetchTransactionStats(companyCode: string) {
   return data.items?.[0] ?? { invoice_count: 0, transaction_count: 0 };
 }
 
-export async function loginUser(username: string, password: string) {
+export async function loginUser(
+  fetchAccessToken: (scope: string) => Promise<string | null>,
+  username: string,
+  password: string
+) {
+  const token = await fetchAccessToken("userAuthentication");
+
   try {
     const res = await fetch(
       `${BASE_URL}/userAuthentication?password=${password}&username=${username}`,
       {
         method: "POST",
         headers: {
-          "X-Api-Key": `${token}`,
+          Authorization: `Bearer ${token}`,
         },
       }
     );

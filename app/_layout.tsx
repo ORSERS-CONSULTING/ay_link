@@ -63,7 +63,7 @@ function RootLayoutContent() {
         if (response.ok) {
           console.log("✅ Token registered successfully with Oracle");
         } else if ([409, 500, 555].includes(response.status)) {
-          console.log("⚠️ Token already exists (duplicate)");
+          // console.log("⚠️ Token already exists (duplicate)");
         } else {
           console.log("❌ Failed to register token:", response.status);
         }
