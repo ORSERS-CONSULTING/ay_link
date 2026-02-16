@@ -24,14 +24,16 @@ import { ClientRequestProvider } from "@/context/ClientRequestContext";
 import Constants from "expo-constants";
 
 const token = Constants.expoConfig?.extra?.API_SECRET;
-
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
+  handleNotification: async (): Promise<Notifications.NotificationBehavior> => ({
     shouldPlaySound: true,
     shouldShowAlert: true,
     shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
+
 
 SplashScreen.preventAutoHideAsync();
 

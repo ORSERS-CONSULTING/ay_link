@@ -16,7 +16,6 @@ import { Image } from "react-native";
 import * as LocalAuthentication from "expo-local-authentication";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { loginUser } from "@/utils/api";
-import useAppAuth from "@/utils/useAppAuth";
 
 // No longer importing MaterialCommunityIcons if you're using Image component for biometric icon
 // import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -40,7 +39,6 @@ export default function LoginScreen() {
   const [blocked, setBlocked] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showBiometricsOption, setShowBiometricsOption] = useState(false); // New state to control visibility
-const {fetchAccessToken} = useAppAuth()
   // --- NEW: Check biometric availability on component mount ---
   useEffect(() => {
     const checkBiometricAvailability = async () => {
@@ -166,54 +164,51 @@ const {fetchAccessToken} = useAppAuth()
   };
 
   const handleLogin = async () => {
-    if (blocked) {
-      Alert.alert("Blocked", "Too many failed attempts. Try again later.");
-      return;
-    }
+  if (blocked) {
+    Alert.alert("Blocked", "Too many failed attempts. Try again later.");
+    return;
+  }
 
-    if (!email || !password) {
-      Alert.alert("Required", "Both email and password are required.");
-      return;
-    }
+  if (!email || !password) {
+    Alert.alert("Required", "Both email and password are required.");
+    return;
+  }
 
-    try {
-      const response = await loginUser(fetchAccessToken,email, password);
+  try {
+    const response = await loginUser(email, password);
 
-      if (response.success) {
-        // --- NEW LOGIC FOR BIOMETRICS ---
-        // Set device-level flag to indicate initial password login happened
-        await AsyncStorage.setItem(
-          "isDeviceCapableAndInitializedForBiometrics",
-          "true"
+    if (response.success) {
+      await AsyncStorage.setItem(
+        "isDeviceCapableAndInitializedForBiometrics",
+        "true"
+      );
+
+      await AsyncStorage.setItem("email", email);
+      await AsyncStorage.setItem("isUserOptedInForBiometrics", "true");
+
+      setShowBiometricsOption(true);
+
+      router.replace("/(tabs)/home");
+    } else {
+      const remaining = attemptsLeft - 1;
+      setAttemptsLeft(remaining);
+
+      if (remaining <= 0) {
+        setBlocked(true);
+        Alert.alert(
+          "Login Blocked",
+          "You have exceeded the maximum number of login attempts."
         );
-        // Store current user's email for potential auto-login via biometrics
-        await AsyncStorage.setItem("email", email);
-        // This 'isUserOptedInForBiometrics' should ideally be set/toggled in settings
-        // For now, let's assume successful login implies they can use it for subsequent times
-        await AsyncStorage.setItem("isUserOptedInForBiometrics", "true");
-        // Update biometric option visibility in case it wasn't shown
-        setShowBiometricsOption(true);
-
-        router.replace("/(tabs)/home");
       } else {
-        const remaining = attemptsLeft - 1;
-        setAttemptsLeft(remaining);
-
-        if (remaining <= 0) {
-          setBlocked(true);
-          Alert.alert(
-            "Login Blocked",
-            "You have exceeded the maximum number of login attempts."
-          );
-        } else {
-          Alert.alert("Login Failed", response.message);
-        }
+        Alert.alert("Login Failed", response.message);
       }
-    } catch (error) {
-      console.error("❌ Unexpected login error:", error);
-      Alert.alert("Error", "Something went wrong. Please try again.");
     }
-  };
+  } catch (error) {
+    console.error("❌ Unexpected login error:", error);
+    Alert.alert("Error", "Something went wrong. Please try again.");
+  }
+};
+
 
   return (
     <SafeAreaView style={styles.container}>

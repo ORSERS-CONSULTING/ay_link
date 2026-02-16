@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import "dotenv/config";
 
 export default {
   expo: {
@@ -13,7 +13,7 @@ export default {
     statusBar: {
       style: "dark",
       hidden: false,
-      backgroundColor: "#ffffff"
+      backgroundColor: "#ffffff",
     },
     ios: {
       supportsTablet: true,
@@ -21,72 +21,73 @@ export default {
       infoPlist: {
         UIStatusBarStyle: "UIStatusBarStyleDarkContent",
         UIViewControllerBasedStatusBarAppearance: false,
-        ITSAppUsesNonExemptEncryption: false
-      }
+        ITSAppUsesNonExemptEncryption: false,
+      },
     },
     android: {
       adaptiveIcon: {
         foregroundImage: "./assets/images/logo.png",
-        backgroundColor: "#ffffff"
+        backgroundColor: "#ffffff",
       },
       package: "com.tenioduola.creditApp",
       googleServicesFile: "./google-services.json",
       versionCode: 2,
       permissions: [
         "android.permission.USE_BIOMETRIC",
-        "android.permission.USE_FINGERPRINT"
-      ]
+        "android.permission.USE_FINGERPRINT",
+      ],
     },
     androidStatusBar: {
       barStyle: "dark-content",
       backgroundColor: "#ffffff",
-      translucent: false
+      translucent: false,
     },
     web: {
       bundler: "metro",
       output: "static",
-      favicon: "./assets/images/logo.png"
+      favicon: "./assets/images/logo.png",
     },
     plugins: [
       "expo-router",
+      ["@react-native-community/datetimepicker"],
       [
         "expo-splash-screen",
         {
           image: "./assets/images/logo.png",
           imageWidth: 200,
           resizeMode: "contain",
-          backgroundColor: "#ffffff"
-        }
+          backgroundColor: "#ffffff",
+        },
       ],
       [
         "expo-local-authentication",
         {
-          faceIDPermission: "Allow $(PRODUCT_NAME) to use Face ID."
-        }
-      ]
+          faceIDPermission: "Allow $(PRODUCT_NAME) to use Face ID.",
+        },
+      ],
     ],
     experiments: {
-      typedRoutes: true
+      typedRoutes: true,
     },
     extra: {
       API_SECRET: process.env.API_SECRET,
-    CLIENT_ID: process.env.CLIENT_ID,
-    CLIENT_SECRET: process.env.CLIENT_SECRET,
-    ACCESS_TOKEN_URL: process.env.ACCESS_TOKEN_URL,
-    BASE_SCOPE_URL: process.env.BASE_SCOPE_URL,
+      CLIENT_ID: process.env.CLIENT_ID,
+      CLIENT_SECRET: process.env.CLIENT_SECRET,
+      ACCESS_TOKEN_URL: process.env.ACCESS_TOKEN_URL,
+      BASE_SCOPE_URL: process.env.BASE_SCOPE_URL,
       router: {
-        origin: false
+        origin: false,
       },
       eas: {
-        projectId: "a867d74b-7553-431e-895b-c225b596ce03"
-      }
+        projectId: "a867d74b-7553-431e-895b-c225b596ce03",
+      },
     },
     owner: "tenioduola",
     runtimeVersion: {
-      policy: "appVersion"
+      policy: "appVersion",
     },
     updates: {
-      url: "https://u.expo.dev/a867d74b-7553-431e-895b-c225b596ce03"
-    }
-  }
+      url: "https://u.expo.dev/a867d74b-7553-431e-895b-c225b596ce03",
+    },
+  },
 };

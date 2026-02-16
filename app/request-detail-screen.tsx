@@ -26,7 +26,6 @@ import {
 import { useChartData } from "@/context/ChartDataContext";
 import { useClientRequests } from "@/context/ClientRequestContext";
 import { RefreshControl } from "react-native";
-import useAppAuth from "@/utils/useAppAuth";
 
 export default function RequestDetailScreen() {
   const router = useRouter();
@@ -53,7 +52,7 @@ export default function RequestDetailScreen() {
     const loadStats = async () => {
       if (!selectedRequest?.companyCode) return;
       try {
-        const stats = await fetchTransactionStats(fetchAccessToken,selectedRequest.companyCode);
+        const stats = await fetchTransactionStats(selectedRequest.companyCode);
         setTransactionStats(stats);
       } catch (e) {
         console.error("❌ Failed to load transaction stats:", e);
@@ -95,12 +94,11 @@ export default function RequestDetailScreen() {
     existingRejectionNote
   );
   const [isProcessing, setIsProcessing] = useState(false);
-  const { fetchAccessToken } = useAppAuth();
 
   // const { approvedAmount, rejectedAmount } = getClientSummary(clientName);
   const loadClientsAndChartData = async () => {
     try {
-      const response = await fetchClientRequests(fetchAccessToken);
+      const response = await fetchClientRequests();
 
       const formattedClients = response.map((item: any) => ({
         id: item.request_id.toString(),
@@ -157,10 +155,10 @@ export default function RequestDetailScreen() {
 
     try {
       if (selectedAction === "accept") {
-        await approveRequest(fetchAccessToken,selectedRequest.id);
+        await approveRequest(selectedRequest.id);
         Toast.show({ type: "success", text1: "Request approved!" });
       } else if (selectedAction === "reject") {
-        await rejectRequest(fetchAccessToken,selectedRequest.id, rejectionNote.trim());
+        await rejectRequest(selectedRequest.id, rejectionNote.trim());
         Toast.show({ type: "success", text1: "Request rejected!" });
       }
 
@@ -168,7 +166,7 @@ export default function RequestDetailScreen() {
       await loadClientsAndChartData();
 
       // Get the updated request from backend
-      const refreshedRequests = await fetchClientRequests(fetchAccessToken);
+      const refreshedRequests = await fetchClientRequests();
       const updated = refreshedRequests.find(
         (r: any) => r.request_id.toString() === selectedRequest.id
       );
@@ -237,7 +235,7 @@ export default function RequestDetailScreen() {
     }
 
     try {
-      await sendBackRequest(fetchAccessToken,selectedRequest.id, additionalInfo.trim());
+      await sendBackRequest(selectedRequest.id, additionalInfo.trim());
 
       Toast.show({
         type: "success",
@@ -277,7 +275,7 @@ export default function RequestDetailScreen() {
     setRefreshing(true);
 
     try {
-      const refreshedRequests = await fetchClientRequests(fetchAccessToken);
+      const refreshedRequests = await fetchClientRequests();
       console.log("formatted", refreshedRequests);
       const updated = refreshedRequests.find(
         (r: any) => r.request_id.toString() === selectedRequest.id
@@ -338,7 +336,7 @@ export default function RequestDetailScreen() {
         });
       }
 
-      const stats = await fetchTransactionStats(fetchAccessToken,selectedRequest.companyCode);
+      const stats = await fetchTransactionStats(selectedRequest.companyCode);
       setTransactionStats(stats);
     } catch (error) {
       Toast.show({ type: "error", text1: "Refresh failed." });

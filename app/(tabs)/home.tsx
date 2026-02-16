@@ -34,7 +34,6 @@ import {
 } from "@/context/ClientRequestContext";
 import { useDailyTotal } from "@/hooks/useDailyTotal";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import useAppAuth from "@/utils/useAppAuth";
 
 type Client = {
   id: string;
@@ -87,7 +86,6 @@ export default function HomeScreen() {
   const [isNavigating, setIsNavigating] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  const { fetchAccessToken } = useAppAuth();
   useEffect(() => {
     if (showSearch) {
       setTimeout(() => searchInputRef.current?.focus(), 100);
@@ -97,7 +95,7 @@ export default function HomeScreen() {
   const loadClientsAndChartData = async () => {
     setRefreshing(true);
     try {
-      const response = await fetchClientRequests(fetchAccessToken);
+      const response = await fetchClientRequests();
 
       const formattedClients: ClientRequest[] = response
         .filter(
@@ -191,7 +189,7 @@ export default function HomeScreen() {
         Toast.show({ type: "info", text1: "Sending approval..." });
 
         const username = await AsyncStorage.getItem("email");
-        const result = await approveRequest(fetchAccessToken,selectedClient.id);
+        const result = await approveRequest(selectedClient.id);
         //console.log("✅ Approve response:", result);
 
         Toast.show({ type: "success", text1: "Request approved!" });
@@ -206,7 +204,7 @@ export default function HomeScreen() {
       if (selectedAction === "reject") {
         Toast.show({ type: "info", text1: "Sending rejection..." });
 
-        const result = await rejectRequest(fetchAccessToken,
+        const result = await rejectRequest(
           selectedClient.id,
           rejectionNote.trim() // ✅ removed `now`
         );
@@ -236,7 +234,7 @@ export default function HomeScreen() {
     if (!selectedClient || !additionalInfo.trim()) return;
 
     try {
-      await sendBackRequest(fetchAccessToken,selectedClient.id, additionalInfo.trim());
+      await sendBackRequest(selectedClient.id, additionalInfo.trim());
 
       Toast.show({
         type: "success",

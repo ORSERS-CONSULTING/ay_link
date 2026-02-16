@@ -23,7 +23,6 @@ import * as ScreenOrientation from "expo-screen-orientation";
 import { useWindowDimensions } from "react-native";
 import LineChart from "react-native-chart-kit/dist/line-chart";
 import { Dimensions } from "react-native";
-import useAppAuth from "@/utils/useAppAuth";
 
 type Log = {
   reason: string;
@@ -81,11 +80,10 @@ export default function DashboardScreen() {
       date.getFullYear() === today.getFullYear()
     );
   };
-    const { fetchAccessToken } = useAppAuth();
 
   const loadLogs = async () => {
     try {
-      const response = await fetchClientRequests2(fetchAccessToken,formatDate(selectedDate));
+      const response = await fetchClientRequests2(formatDate(selectedDate));
       const filtered = response.filter(
         (item: any) =>
           item.status?.toLowerCase() === "approved" ||
@@ -135,7 +133,7 @@ export default function DashboardScreen() {
   }, []);
   const loadAllLogs = async () => {
   try {
-    const response = await fetchClientRequests(fetchAccessToken); // no date filter
+    const response = await fetchClientRequests(); // no date filter
     // format & filter similarly to loadLogs
     const filtered = response.filter(
       (item: any) =>

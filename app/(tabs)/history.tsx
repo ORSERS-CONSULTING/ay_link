@@ -27,7 +27,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSelectedRequest } from "@/context/SelectedRequestContext";
 import { useFocusEffect } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import useAppAuth from "@/utils/useAppAuth";
 
 const statuses = ["All", "Approved", "Rejected"];
 
@@ -87,26 +86,21 @@ export default function HistoryScreen() {
       setTimeout(() => searchInputRef.current?.focus(), 100);
     }
   }, [showSearch]);
-  const { fetchAccessToken } = useAppAuth();
 
   const loadLogs = async () => {
     setRefreshing(true);
     try {
-      console.log("hello");
-      const response = await fetchClientRequests2(
-        fetchAccessToken,
-        formatDate(selectedDate)
-      );
+      const response = await fetchClientRequests2(formatDate(selectedDate));
       const filtered = response.filter(
         (item: any) =>
           item.status?.toLowerCase() === "approved" ||
-          item.status?.toLowerCase() === "rejected"
+          item.status?.toLowerCase() === "rejected",
       );
       const formatted: Log[] = filtered.map((item: any) => ({
         id: item.request_id.toString(),
         clientName: item.company_name?.trim() || "",
         requestedAmount: item.credit_amount,
-        currentBalance: 0, // if not used, consider removing
+        currentBalance: 0, 
         status: capitalize(item.status),
         timestamp: item.requested_at,
         decisionTime: item.decision_time || "",
@@ -127,8 +121,8 @@ export default function HistoryScreen() {
       setLogs(
         formatted.sort(
           (a, b) =>
-            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-        )
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+        ),
       );
     } catch {
       Toast.show({ type: "error", text1: "Failed to load history logs." });
@@ -211,8 +205,8 @@ export default function HistoryScreen() {
                 item.status === "Approved"
                   ? styles.approved
                   : item.status === "Rejected"
-                  ? styles.rejected
-                  : styles.pending,
+                    ? styles.rejected
+                    : styles.pending,
               ]}
             >
               {item.status}
@@ -221,7 +215,7 @@ export default function HistoryScreen() {
         </View>
       </TouchableOpacity>
     ),
-    [isNavigating]
+    [isNavigating],
   );
 
   const styles = StyleSheet.create({
