@@ -1,13 +1,19 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
+import { safeFetch, saveTokens } from "@/utils/safeFetch";
+import { getDeviceId } from "./device";
 
-const BASE_URL = "http://10.0.0.124:3000/api";
+/* ============================= */
+/* ========= CONFIG ============ */
+/* ============================= */
 
+const BACKEND_URL = Constants.expoConfig?.extra?.BACKEND_URL ?? "";
 /* ============================= */
 /* ========= REQUESTS ========= */
 /* ============================= */
 
 export const fetchClientRequests = async () => {
-  const res = await fetch(`${BASE_URL}/requests`);
+  const res = await safeFetch("/requests");
 
   if (!res.ok) {
     throw new Error("Failed to fetch client requests");
@@ -26,8 +32,8 @@ export const fetchClientRequests = async () => {
 };
 
 export const fetchClientRequests2 = async (datefil: string) => {
-  const res = await fetch(
-    `${BASE_URL}/filteredrequests?datefil=${encodeURIComponent(datefil)}`
+  const res = await safeFetch(
+    `/filteredrequests?datefil=${encodeURIComponent(datefil)}`,
   );
 
   if (!res.ok) {
@@ -53,11 +59,11 @@ export const fetchClientRequests2 = async (datefil: string) => {
 export async function approveRequest(requestId: string) {
   const approver = await AsyncStorage.getItem("email");
 
-  const res = await fetch(
-    `${BASE_URL}/approve?request_id=${requestId}&approver_name=${encodeURIComponent(
-      approver || "unknown"
+  const res = await safeFetch(
+    `/approve?request_id=${requestId}&approver_name=${encodeURIComponent(
+      approver || "unknown",
     )}`,
-    { method: "POST" }
+    { method: "POST" },
   );
 
   if (!res.ok) throw new Error("Approval failed");
@@ -65,17 +71,14 @@ export async function approveRequest(requestId: string) {
   return res.json().catch(() => ({}));
 }
 
-export async function rejectRequest(
-  requestId: string,
-  comment: string
-) {
+export async function rejectRequest(requestId: string, comment: string) {
   const approver = await AsyncStorage.getItem("email");
 
-  const res = await fetch(
-    `${BASE_URL}/reject?request_id=${requestId}&rejection_comment=${encodeURIComponent(
-      comment
+  const res = await safeFetch(
+    `/reject?request_id=${requestId}&rejection_comment=${encodeURIComponent(
+      comment,
     )}&approver_name=${encodeURIComponent(approver || "unknown")}`,
-    { method: "POST" }
+    { method: "POST" },
   );
 
   if (!res.ok) throw new Error("Rejection failed");
@@ -83,15 +86,12 @@ export async function rejectRequest(
   return res.json().catch(() => ({}));
 }
 
-export async function sendBackRequest(
-  requestId: string,
-  remarks: string
-) {
-  const res = await fetch(
-    `${BASE_URL}/sendBack?request_id=${requestId}&returned_remarks=${encodeURIComponent(
-      remarks
+export async function sendBackRequest(requestId: string, remarks: string) {
+  const res = await safeFetch(
+    `/sendBack?request_id=${requestId}&returned_remarks=${encodeURIComponent(
+      remarks,
     )}`,
-    { method: "POST" }
+    { method: "POST" },
   );
 
   if (!res.ok) throw new Error("Send back failed");
@@ -100,45 +100,51 @@ export async function sendBackRequest(
 }
 
 /* ============================= */
-/* ========= STATS ========= */
+/* ========= STATS ============ */
 /* ============================= */
 
 export async function fetchTransactionStats(companyCode: string) {
-  const res = await fetch(
-    `${BASE_URL}/transactionnumber?company_code=${companyCode}`
-  );
+  const res = await safeFetch(`/transactionnumber?company_code=${companyCode}`);
 
   if (!res.ok) throw new Error("Failed to fetch transaction stats");
 
   const data = await res.json();
 
-  return data.items?.[0] ?? {
-    invoice_count: 0,
-    transaction_count: 0,
-  };
+  return (
+    data.items?.[0] ?? {
+      invoice_count: 0,
+      transaction_count: 0,
+    }
+  );
 }
 
 /* ============================= */
-/* ========= LOGIN ========= */
-/* ============================= */
+/* ========= LOGIN ============ */
+export async function loginUser(username: string, password: string) {
+  const device_id = await getDeviceId();
 
-export async function loginUser(
-  username: string,
-  password: string
-) {
   const res = await fetch(
-    `${BASE_URL}/userAuthentication`,
+    `${BACKEND_URL}/userAuthentication?username=${encodeURIComponent(
+      username
+    )}&password=${encodeURIComponent(password)}`,
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        username,
-        password,
+        device_id,
       }),
     }
   );
 
-  return res.json();
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.message || "Login failed");
+  }
+
+  await saveTokens(data.access_token, data.refresh_token);
+
+  return data;
 }

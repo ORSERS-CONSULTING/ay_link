@@ -15,6 +15,7 @@ import {
   TextInput,
   Modal,
   RefreshControl,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -25,8 +26,9 @@ import { fetchClientRequests2 } from "@/utils/api";
 import Toast from "react-native-toast-message";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSelectedRequest } from "@/context/SelectedRequestContext";
-import { useFocusEffect } from "@react-navigation/native";
+import * as SecureStore from "expo-secure-store";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { logout } from "@/utils/safeFetch";
 
 const statuses = ["All", "Approved", "Rejected"];
 
@@ -79,6 +81,24 @@ export default function HistoryScreen() {
     return `${day}-${month}-${year}`;
   };
 
+  // const handleLogout = () => {
+  //   Alert.alert(
+  //     "Logout",
+  //     "Are you sure you want to logout?",
+  //     [
+  //       { text: "Cancel", style: "cancel" },
+  //       {
+  //         text: "Logout",
+  //         style: "destructive",
+  //         onPress: async () => {
+  //           await logout();
+  //           router.replace("/login");
+  //         },
+  //       },
+  //     ]
+  //   );
+  // };
+
   //console.log("Datefil", formatDate(selectedDate));
 
   useEffect(() => {
@@ -86,6 +106,17 @@ export default function HistoryScreen() {
       setTimeout(() => searchInputRef.current?.focus(), 100);
     }
   }, [showSearch]);
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = await SecureStore.getItemAsync("access_token");
+
+      if (!token) {
+        router.replace("/login");
+      }
+    };
+
+    checkAuth();
+  }, []);
 
   const loadLogs = async () => {
     setRefreshing(true);
@@ -100,7 +131,7 @@ export default function HistoryScreen() {
         id: item.request_id.toString(),
         clientName: item.company_name?.trim() || "",
         requestedAmount: item.credit_amount,
-        currentBalance: 0, 
+        currentBalance: 0,
         status: capitalize(item.status),
         timestamp: item.requested_at,
         decisionTime: item.decision_time || "",
@@ -389,14 +420,13 @@ export default function HistoryScreen() {
               />
             </TouchableOpacity>
 
-            {/* <TouchableOpacity onPress={handleExportPDF}>
-              <Ionicons
-                name="download-outline"
-                size={22}
-                color="#1E1E4B"
-                style={{ marginLeft: 12 }}
-              />
-            </TouchableOpacity> */}
+            {/* ✅ Logout Button */}
+            {/* <TouchableOpacity
+    onPress={handleLogout}
+    style={{ marginLeft: 12 }}
+  >
+    <Ionicons name="log-out-outline" size={22} color="#E74C3C" />
+  </TouchableOpacity> */}
           </View>
         </View>
 

@@ -52,10 +52,10 @@ export const ChartDataProvider = ({
           }));
         setChartData(formatted);
 
-        console.log(
-          "🧾 Loaded approved entries:",
-          formatted.filter((e) => e.status === "Approved")
-        );
+        // console.log(
+        //   "🧾 Loaded approved entries:",
+        //   formatted.filter((e) => e.status === "Approved")
+        // );
       } catch (e) {
         Toast.show({ type: "error", text1: "Failed to load chart data." });
       }
@@ -66,10 +66,10 @@ export const ChartDataProvider = ({
 
   const getTotalIncreasedAmount = (date?: Date | null): number => {
     const targetDate = date ?? new Date(); // Use current date if none is provided
-    console.log(
-      "📆 getTotalIncreasedAmount - using date:",
-      targetDate.toISOString()
-    );
+    // console.log(
+    //   "📆 getTotalIncreasedAmount - using date:",
+    //   targetDate.toISOString()
+    // );
 
     return chartData
       .filter(

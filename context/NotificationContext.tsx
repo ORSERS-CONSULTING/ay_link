@@ -54,7 +54,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
     responseListener.current = Notifications.addNotificationResponseReceivedListener(
       (response) => {
-        console.log("🔔 Notification Response:", response);
+        // console.log("🔔 Notification Response:", response);
         // Optional: handle tap/click on notification here
       }
     );

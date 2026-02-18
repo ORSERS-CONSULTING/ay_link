@@ -16,6 +16,7 @@ import { Image } from "react-native";
 import * as LocalAuthentication from "expo-local-authentication";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { loginUser } from "@/utils/api";
+import { hasValidSession } from "@/utils/safeFetch";
 
 // No longer importing MaterialCommunityIcons if you're using Image component for biometric icon
 // import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -48,7 +49,7 @@ export default function LoginScreen() {
 
       // Check if the device has ever successfully completed a password login
       const deviceInitialized = await AsyncStorage.getItem(
-        "isDeviceCapableAndInitializedForBiometrics"
+        "isDeviceCapableAndInitializedForBiometrics",
       );
 
       // If hardware is there, enrolled, AND the device has been initialized once
@@ -66,10 +67,10 @@ export default function LoginScreen() {
   useEffect(() => {
     const autoAuthenticateBiometrics = async () => {
       const isDeviceInitialized = await AsyncStorage.getItem(
-        "isDeviceCapableAndInitializedForBiometrics"
+        "isDeviceCapableAndInitializedForBiometrics",
       );
       const userOptedIn = await AsyncStorage.getItem(
-        "isUserOptedInForBiometrics"
+        "isUserOptedInForBiometrics",
       ); // Assuming you set this somewhere, e.g., in settings
       const storedEmail = await AsyncStorage.getItem("email"); // To know which user might be logging in
 
@@ -91,14 +92,21 @@ export default function LoginScreen() {
           });
 
           if (result.success) {
-            // In a real app, you'd likely re-authenticate with your backend using the stored email
-            // and some secure token if possible, or directly redirect if no backend token needed.
-            router.replace("/(tabs)/home");
+            const hasSession = await hasValidSession();
+
+            if (hasSession) {
+              router.replace("/(tabs)/home");
+            } else {
+              Alert.alert(
+                "Session Expired",
+                "Please login with email and password again.",
+              );
+            }
           } else {
             // If auto-authentication fails, allow manual login
             Alert.alert(
               "Authentication Failed",
-              "Biometric auto-login unsuccessful. Please use email and password."
+              "Biometric auto-login unsuccessful. Please use email and password.",
             );
           }
         }
@@ -112,12 +120,12 @@ export default function LoginScreen() {
     // Renamed from handleFaceIDLogin for clarity
     // Check if the device has ever successfully completed a password login
     const isDeviceInitialized = await AsyncStorage.getItem(
-      "isDeviceCapableAndInitializedForBiometrics"
+      "isDeviceCapableAndInitializedForBiometrics",
     );
     if (isDeviceInitialized !== "true") {
       Alert.alert(
         "Biometric Setup Required",
-        "Please log in with email and password first to enable biometric login for this device."
+        "Please log in with email and password first to enable biometric login for this device.",
       );
       return;
     }
@@ -128,7 +136,7 @@ export default function LoginScreen() {
     if (!hasHardware || !isEnrolled) {
       Alert.alert(
         "Biometrics Not Available",
-        "Your device doesn't support biometrics or it hasn't been set up."
+        "Your device doesn't support biometrics or it hasn't been set up.",
       );
       return;
     }
@@ -136,12 +144,12 @@ export default function LoginScreen() {
     // You might also want to check if the *current user* has opted into biometrics
     // (e.g., from AsyncStorage or a backend flag)
     const isUserOptedIn = await AsyncStorage.getItem(
-      "isUserOptedInForBiometrics"
+      "isUserOptedInForBiometrics",
     );
     if (isUserOptedIn !== "true") {
       Alert.alert(
         "Biometrics Not Enabled",
-        "Biometric login is not enabled for your account. Please enable it in settings after logging in with email and password."
+        "Biometric login is not enabled for your account. Please enable it in settings after logging in with email and password.",
       );
       return;
     }
@@ -150,65 +158,71 @@ export default function LoginScreen() {
       promptMessage: "Login with Biometrics",
       fallbackLabel: "Use passcode",
     });
-
     if (result.success) {
-      // In a real app, you'd authenticate the user with your backend here using the biometric success
-      // and potentially a stored user identifier (like email or user ID)
-      router.replace("/(tabs)/home");
+      const hasSession = await hasValidSession();
+
+      if (hasSession) {
+        router.replace("/(tabs)/home");
+      } else {
+        Alert.alert("Session Expired", "Please login manually.");
+      }
     } else {
       Alert.alert(
         "Authentication Failed",
-        "Biometric verification unsuccessful."
+        "Biometric verification unsuccessful.",
       );
     }
   };
 
   const handleLogin = async () => {
-  if (blocked) {
-    Alert.alert("Blocked", "Too many failed attempts. Try again later.");
-    return;
-  }
-
-  if (!email || !password) {
-    Alert.alert("Required", "Both email and password are required.");
-    return;
-  }
-
-  try {
-    const response = await loginUser(email, password);
-
-    if (response.success) {
-      await AsyncStorage.setItem(
-        "isDeviceCapableAndInitializedForBiometrics",
-        "true"
-      );
-
-      await AsyncStorage.setItem("email", email);
-      await AsyncStorage.setItem("isUserOptedInForBiometrics", "true");
-
-      setShowBiometricsOption(true);
-
-      router.replace("/(tabs)/home");
-    } else {
-      const remaining = attemptsLeft - 1;
-      setAttemptsLeft(remaining);
-
-      if (remaining <= 0) {
-        setBlocked(true);
-        Alert.alert(
-          "Login Blocked",
-          "You have exceeded the maximum number of login attempts."
-        );
-      } else {
-        Alert.alert("Login Failed", response.message);
-      }
+    if (blocked) {
+      Alert.alert("Blocked", "Too many failed attempts. Try again later.");
+      return;
     }
-  } catch (error) {
-    console.error("❌ Unexpected login error:", error);
-    Alert.alert("Error", "Something went wrong. Please try again.");
-  }
-};
 
+    if (!email || !password) {
+      Alert.alert("Required", "Both email and password are required.");
+      return;
+    }
+
+    try {
+      const response = await loginUser(email, password);
+
+      // Tokens already saved in loginUser
+      // If not, keep this:
+      // await saveTokens(response.access_token, response.refresh_token);
+
+      if (response.access_token) {
+        await AsyncStorage.setItem(
+          "isDeviceCapableAndInitializedForBiometrics",
+          "true",
+        );
+
+        await AsyncStorage.setItem("email", email);
+        await AsyncStorage.setItem("isUserOptedInForBiometrics", "true");
+
+        setShowBiometricsOption(true);
+
+        router.replace("/(tabs)/home");
+      } else {
+        const remaining = attemptsLeft - 1;
+        setAttemptsLeft(remaining);
+
+        if (remaining <= 0) {
+          setBlocked(true);
+          Alert.alert(
+            "Login Blocked",
+            "You have exceeded the maximum number of login attempts.",
+          );
+        } else {
+          Alert.alert("Login Failed", response.message);
+        }
+      }
+    } catch (error: any) {
+      console.error("❌ Unexpected login error:", error);
+      Alert.alert("Error", error.message || "Something went wrong.");
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>

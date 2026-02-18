@@ -91,7 +91,7 @@ export default function RequestDetailScreen() {
   const [localDecisionTime, setLocalDecisionTime] = useState(decisionTime);
   const [localApprover, setLocalApprover] = useState(approver);
   const [localRejectionNote, setLocalRejectionNote] = useState(
-    existingRejectionNote
+    existingRejectionNote,
   );
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -111,12 +111,12 @@ export default function RequestDetailScreen() {
           item.status === "PENDING"
             ? "Pending"
             : item.status === "APPROVED"
-            ? "Approved"
-            : item.status === "REJECTED"
-            ? "Rejected"
-            : item.status === "ON HOLD"
-            ? "On hold"
-            : "Pending",
+              ? "Approved"
+              : item.status === "REJECTED"
+                ? "Rejected"
+                : item.status === "ON HOLD"
+                  ? "On hold"
+                  : "Pending",
         timestamp: item.requested_at,
         rejectionNote: item.rejection_comment || "",
         reason: item.reason,
@@ -168,7 +168,7 @@ export default function RequestDetailScreen() {
       // Get the updated request from backend
       const refreshedRequests = await fetchClientRequests();
       const updated = refreshedRequests.find(
-        (r: any) => r.request_id.toString() === selectedRequest.id
+        (r: any) => r.request_id.toString() === selectedRequest.id,
       );
 
       if (updated) {
@@ -176,10 +176,10 @@ export default function RequestDetailScreen() {
           updated.status === "APPROVED"
             ? "Approved"
             : updated.status === "REJECTED"
-            ? "Rejected"
-            : updated.status === "ON HOLD"
-            ? "On hold"
-            : "Pending";
+              ? "Rejected"
+              : updated.status === "ON HOLD"
+                ? "On hold"
+                : "Pending";
 
         setLocalStatus(updatedStatus);
         setLocalDecisionTime(updated.decision_time || new Date().toISOString());
@@ -265,7 +265,7 @@ export default function RequestDetailScreen() {
       (entry) =>
         entry.status.toLowerCase() === status.toLowerCase() &&
         entry.companyCode === selectedRequest.companyCode &&
-        normalize(entry.clientName) === normalize(selectedRequest.clientName)
+        normalize(entry.clientName) === normalize(selectedRequest.clientName),
     );
 
     return filtered.reduce((sum, entry) => sum + entry.requestedAmount, 0);
@@ -276,16 +276,13 @@ export default function RequestDetailScreen() {
 
     try {
       const refreshedRequests = await fetchClientRequests();
-      console.log("formatted", refreshedRequests);
       const updated = refreshedRequests.find(
-        (r: any) => r.request_id.toString() === selectedRequest.id
+        (r: any) => r.request_id.toString() === selectedRequest.id,
       );
-
       if (updated) {
         const normalizedStatus = updated.status?.toLowerCase();
         let finalStatus: "Approved" | "Rejected" | "Pending" | "On hold" =
           "Pending";
-
         if (normalizedStatus === "approved") finalStatus = "Approved";
         else if (normalizedStatus === "rejected") finalStatus = "Rejected";
         else if (normalizedStatus === "on hold") finalStatus = "On hold";
@@ -315,12 +312,12 @@ export default function RequestDetailScreen() {
             updated.status === "PENDING"
               ? "Pending"
               : updated.status === "APPROVED"
-              ? "Approved"
-              : updated.status === "REJECTED"
-              ? "Rejected"
-              : updated.status === "ON HOLD"
-              ? "On hold"
-              : "Pending",
+                ? "Approved"
+                : updated.status === "REJECTED"
+                  ? "Rejected"
+                  : updated.status === "ON HOLD"
+                    ? "On hold"
+                    : "Pending",
           timestamp: updated.requested_at,
           rejectionNote: updated.rejection_comment || "",
           reason: updated.reason,
@@ -375,10 +372,10 @@ export default function RequestDetailScreen() {
                 localStatus === "Approved"
                   ? styles.chipApproved
                   : localStatus === "Rejected"
-                  ? styles.chipRejected
-                  : localStatus === "On hold"
-                  ? styles.chipOnHold
-                  : styles.chipPending,
+                    ? styles.chipRejected
+                    : localStatus === "On hold"
+                      ? styles.chipOnHold
+                      : styles.chipPending,
               ]}
             >
               <Text style={styles.chipText}>{localStatus.toUpperCase()}</Text>

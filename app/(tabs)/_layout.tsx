@@ -1,16 +1,34 @@
-import { Tabs } from "expo-router";
-import React from "react";
-import { Platform, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { useColorScheme } from "@/hooks/useColorScheme";
-import { MaterialIcons } from "@expo/vector-icons";
+import { Tabs, router } from "expo-router";
+import React, { useEffect, useState } from "react";
+import { Platform } from "react-native";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import * as SecureStore from "expo-secure-store";
 
 export default function TabLayout() {
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = await SecureStore.getItemAsync("access_token");
+
+      if (!token) {
+        router.replace("/login");
+      } else {
+        setCheckingAuth(false);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  // ⛔ Prevent tabs from rendering until auth check completes
+  if (checkingAuth) return null;
+
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: "#1E1E4B",
-        tabBarInactiveTintColor: "#9CA3AF", // gray-400
+        tabBarInactiveTintColor: "#9CA3AF",
         headerShown: false,
         tabBarShowLabel: true,
         tabBarStyle: {
@@ -19,10 +37,6 @@ export default function TabLayout() {
           left: 16,
           right: 16,
           backgroundColor: "#fff",
-          borderBottomLeftRadius: 0, // Rounded bottom
-          borderBottomRightRadius: 0,
-          borderTopLeftRadius: 0, // Flat top
-          borderTopRightRadius: 0,
           height: 70,
           elevation: 1,
           borderTopColor: "#E5E7EB",
@@ -43,25 +57,27 @@ export default function TabLayout() {
         name="home"
         options={{
           title: "Home",
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color }) => (
             <Ionicons name="home" size={24} color={color} />
           ),
         }}
       />
+
       <Tabs.Screen
         name="dashboard"
         options={{
           title: "Dashboard",
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color }) => (
             <MaterialIcons name="dashboard" size={24} color={color} />
           ),
         }}
       />
+
       <Tabs.Screen
         name="history"
         options={{
           title: "History",
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color }) => (
             <Ionicons name="time" size={24} color={color} />
           ),
         }}

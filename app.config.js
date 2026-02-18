@@ -70,6 +70,7 @@ export default {
       typedRoutes: true,
     },
     extra: {
+      BACKEND_URL: process.env.BACKEND_URL,
       API_SECRET: process.env.API_SECRET,
       CLIENT_ID: process.env.CLIENT_ID,
       CLIENT_SECRET: process.env.CLIENT_SECRET,

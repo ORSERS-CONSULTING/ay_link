@@ -25,15 +25,15 @@ import Constants from "expo-constants";
 
 const token = Constants.expoConfig?.extra?.API_SECRET;
 Notifications.setNotificationHandler({
-  handleNotification: async (): Promise<Notifications.NotificationBehavior> => ({
-    shouldPlaySound: true,
-    shouldShowAlert: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
+  handleNotification:
+    async (): Promise<Notifications.NotificationBehavior> => ({
+      shouldPlaySound: true,
+      shouldShowAlert: true,
+      shouldSetBadge: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
 });
-
 
 SplashScreen.preventAutoHideAsync();
 
@@ -47,27 +47,28 @@ function RootLayoutContent() {
   useEffect(() => {
     if (loaded) SplashScreen.hideAsync();
   }, [loaded]);
-
   useEffect(() => {
     if (!expoPushToken) return;
-    // const token = "MY_SECRET_KEY";
+
+    const BASE_URL = "https://aylink.yalayis.ai/api";
     const registerToken = async () => {
-      const url = `https://p7erb4tc3lzuycgznzjfbcxsiy.apigateway.me-dubai-1.oci.customer-oci.com/main/register?expo_token=${encodeURIComponent(
-        expoPushToken
-      )}`;
       try {
-        const response = await fetch(url, {
+        const response = await fetch(`${BASE_URL}/registerToken`, {
           method: "POST",
           headers: {
-            "X-Api-Key": `${token}`,
+            "Content-Type": "application/json",
+            // If your backend requires auth:
+            // Authorization: `Bearer ${userToken}`,
           },
+          body: JSON.stringify({
+            expo_token: expoPushToken,
+          }),
         });
+
         if (response.ok) {
-          console.log("✅ Token registered successfully with Oracle");
-        } else if ([409, 500, 555].includes(response.status)) {
-          // console.log("⚠️ Token already exists (duplicate)");
+          console.log("✅ Token registered via backend");
         } else {
-          console.log("❌ Failed to register token:", response.status);
+          console.log("❌ Backend failed:", response.status);
         }
       } catch (error) {
         console.error("❌ Registration error:", error);
