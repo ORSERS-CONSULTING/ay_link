@@ -22,6 +22,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { SelectedRequestProvider } from "@/context/SelectedRequestContext"; // ✅ import it
 import { ClientRequestProvider } from "@/context/ClientRequestContext";
 import Constants from "expo-constants";
+import { safeFetch } from "@/utils/safeFetch";
 
 const token = Constants.expoConfig?.extra?.API_SECRET;
 Notifications.setNotificationHandler({
@@ -49,16 +50,13 @@ function RootLayoutContent() {
   }, [loaded]);
   useEffect(() => {
     if (!expoPushToken) return;
-
     const BASE_URL = "https://aylink.yalayis.ai/api";
     const registerToken = async () => {
       try {
-        const response = await fetch(`${BASE_URL}/registerToken`, {
+        const response = await safeFetch("/registerToken", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            // If your backend requires auth:
-            // Authorization: `Bearer ${userToken}`,
           },
           body: JSON.stringify({
             expo_token: expoPushToken,
