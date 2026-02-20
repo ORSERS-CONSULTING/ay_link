@@ -3,15 +3,7 @@ import Constants from "expo-constants";
 import { safeFetch, saveTokens } from "@/utils/safeFetch";
 import { getDeviceId } from "./device";
 
-/* ============================= */
-/* ========= CONFIG ============ */
-/* ============================= */
-
 const BACKEND_URL = Constants.expoConfig?.extra?.BACKEND_URL ?? "";
-/* ============================= */
-/* ========= REQUESTS ========= */
-/* ============================= */
-
 export const fetchClientRequests = async () => {
   const res = await safeFetch("/requests");
 
@@ -51,10 +43,6 @@ export const fetchClientRequests2 = async (datefil: string) => {
     approver: item.approver?.trim(),
   }));
 };
-
-/* ============================= */
-/* ========= ACTIONS ========= */
-/* ============================= */
 
 export async function approveRequest(requestId: string) {
   const approver = await AsyncStorage.getItem("email");
@@ -99,10 +87,6 @@ export async function sendBackRequest(requestId: string, remarks: string) {
   return res.json().catch(() => ({}));
 }
 
-/* ============================= */
-/* ========= STATS ============ */
-/* ============================= */
-
 export async function fetchTransactionStats(companyCode: string) {
   const res = await safeFetch(`/transactionnumber?company_code=${companyCode}`);
 
@@ -118,14 +102,12 @@ export async function fetchTransactionStats(companyCode: string) {
   );
 }
 
-/* ============================= */
-/* ========= LOGIN ============ */
 export async function loginUser(username: string, password: string) {
   const device_id = await getDeviceId();
 
   const res = await fetch(
     `${BACKEND_URL}/userAuthentication?username=${encodeURIComponent(
-      username
+      username,
     )}&password=${encodeURIComponent(password)}`,
     {
       method: "POST",
@@ -135,7 +117,7 @@ export async function loginUser(username: string, password: string) {
       body: JSON.stringify({
         device_id,
       }),
-    }
+    },
   );
 
   const data = await res.json();

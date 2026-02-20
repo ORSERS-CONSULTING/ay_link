@@ -11,7 +11,6 @@ import { useEffect } from "react";
 import "react-native-reanimated";
 import { Alert } from "react-native";
 import * as Notifications from "expo-notifications";
-
 import { useColorScheme } from "@/hooks/useColorScheme";
 import {
   NotificationProvider,
@@ -19,12 +18,12 @@ import {
 } from "@/context/NotificationContext";
 import { ChartDataProvider } from "@/context/ChartDataContext";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { SelectedRequestProvider } from "@/context/SelectedRequestContext"; // ✅ import it
+import { SelectedRequestProvider } from "@/context/SelectedRequestContext";
 import { ClientRequestProvider } from "@/context/ClientRequestContext";
 import Constants from "expo-constants";
 import { safeFetch } from "@/utils/safeFetch";
 
-const token = Constants.expoConfig?.extra?.API_SECRET;
+// const token = Constants.expoConfig?.extra?.API_SECRET;
 Notifications.setNotificationHandler({
   handleNotification:
     async (): Promise<Notifications.NotificationBehavior> => ({
@@ -50,7 +49,7 @@ function RootLayoutContent() {
   }, [loaded]);
   useEffect(() => {
     if (!expoPushToken) return;
-    const BASE_URL = "https://aylink.yalayis.ai/api";
+    const BASE_URL = "https://ameryon.com/";
     const registerToken = async () => {
       try {
         const response = await safeFetch("/registerToken", {

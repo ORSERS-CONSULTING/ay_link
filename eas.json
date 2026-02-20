@@ -11,11 +11,12 @@
         "buildType": "apk"
       },
       "env": {
-       "API_SECRET": "$API_SECRET",
+        "API_SECRET": "$API_SECRET",
         "CLIENT_ID": "$CLIENT_ID",
         "CLIENT_SECRET": "$CLIENT_SECRET",
         "ACCESS_TOKEN_URL": "$ACCESS_TOKEN_URL",
-        "BASE_SCOPE_URL": "$BASE_SCOPE_URL"
+        "BASE_SCOPE_URL": "$BASE_SCOPE_URL",
+        "BACKEND_URL": "$BACKEND_URL"
       }
     },
     "preview": {
@@ -25,18 +26,21 @@
         "CLIENT_ID": "$CLIENT_ID",
         "CLIENT_SECRET": "$CLIENT_SECRET",
         "ACCESS_TOKEN_URL": "$ACCESS_TOKEN_URL",
-        "BASE_SCOPE_URL": "$BASE_SCOPE_URL"
+        "BASE_SCOPE_URL": "$BASE_SCOPE_URL",
+        "BACKEND_URL": "$BACKEND_URL"
       }
     },
     "production": {
       "autoIncrement": true,
-      "env": {
-        "API_SECRET": "$API_SECRET",
-        "CLIENT_ID": "$CLIENT_ID",
-        "CLIENT_SECRET": "$CLIENT_SECRET",
-        "ACCESS_TOKEN_URL": "$ACCESS_TOKEN_URL",
-        "BASE_SCOPE_URL": "$BASE_SCOPE_URL"
-      }
+  "env": {
+  "API_SECRET": "$API_SECRET",
+  "CLIENT_ID": "$CLIENT_ID",
+  "CLIENT_SECRET": "$CLIENT_SECRET",
+  "ACCESS_TOKEN_URL": "$ACCESS_TOKEN_URL",
+  "BASE_SCOPE_URL": "$BASE_SCOPE_URL",
+  "BACKEND_URL": "$BACKEND_URL"
+}
+
     }
   },
   "submit": {
