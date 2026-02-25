@@ -237,7 +237,7 @@ export default function LoginScreen() {
       >
         <View style={styles.logoContainer}>
           <Image
-            source={require("@/assets/images/alyalayis-logo.png")}
+            source={require("@/assets/images/alyalayislogo.png")}
             style={styles.logo}
           />
         </View>

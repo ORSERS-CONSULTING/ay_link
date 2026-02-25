@@ -65,6 +65,7 @@ export default {
           faceIDPermission: "Allow $(PRODUCT_NAME) to use Face ID.",
         },
       ],
+      ["expo-font"],
     ],
     experiments: {
       typedRoutes: true,
