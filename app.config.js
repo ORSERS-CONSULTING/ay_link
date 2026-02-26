@@ -4,7 +4,7 @@ export default {
   expo: {
     name: "AYLINK",
     slug: "creditApp",
-    version: "1.0.1",
+    version: "1.0.2",
     orientation: "portrait",
     icon: "./assets/images/logo.png",
     scheme: "myapp",
@@ -16,6 +16,7 @@ export default {
       backgroundColor: "#ffffff",
     },
     ios: {
+      buildNumber: "3",
       supportsTablet: true,
       bundleIdentifier: "com.tenioduola.aylink",
       infoPlist: {
@@ -31,7 +32,7 @@ export default {
       },
       package: "com.tenioduola.creditApp",
       googleServicesFile: "./google-services.json",
-      versionCode: 2,
+      versionCode: 3,
       permissions: [
         "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT",
