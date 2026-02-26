@@ -106,27 +106,30 @@ export async function loginUser(username: string, password: string) {
   const device_id = await getDeviceId();
 
   const res = await fetch(
-    `${BACKEND_URL}/userAuthentication?username=${encodeURIComponent(
-      username,
-    )}&password=${encodeURIComponent(password)}`,
+    `${BACKEND_URL}/userAuthentication?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`,
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        device_id,
-      }),
-    },
+      body: JSON.stringify({ device_id }),
+    }
   );
 
   const data = await res.json();
 
-  if (!res.ok) {
-    throw new Error(data.message || "Login failed");
+  // 🔹 Handle expected auth failure
+  if (res.status === 401) {
+    return { success: false, message: data.message || "Invalid credentials" };
   }
 
+  // 🔹 Handle other server errors
+  if (!res.ok) {
+    throw new Error(data.message || "Server error");
+  }
+
+  // 🔹 Success
   await saveTokens(data.access_token, data.refresh_token);
 
-  return data;
+  return { success: true, ...data };
 }

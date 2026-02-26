@@ -23,13 +23,13 @@ import { hasValidSession } from "@/utils/safeFetch";
 
 // Assuming you have a logout function somewhere in your app that clears user session data
 // For demonstration, let's conceptualize it:
-// const logoutUser = async () => {
-//   await AsyncStorage.removeItem("userToken"); // Clear authentication token
-//   await AsyncStorage.removeItem("email"); // Clear stored email for current user
-//   await AsyncStorage.removeItem("isUserOptedInForBiometrics"); // If this is user-specific preference
-//   // IMPORTANT: DO NOT removeItem("isDeviceCapableAndInitializedForBiometrics") here!
-//   // ... navigate to login screen
-// };
+const logoutUser = async () => {
+  await AsyncStorage.removeItem("userToken"); // Clear authentication token
+  await AsyncStorage.removeItem("email"); // Clear stored email for current user
+  await AsyncStorage.removeItem("isUserOptedInForBiometrics"); // If this is user-specific preference
+  // IMPORTANT: DO NOT removeItem("isDeviceCapableAndInitializedForBiometrics") here!
+  // ... navigate to login screen
+};
 
 export default function LoginScreen() {
   const router = useRouter();

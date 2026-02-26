@@ -81,25 +81,25 @@ export default function HistoryScreen() {
     return `${day}-${month}-${year}`;
   };
 
-  // const handleLogout = () => {
-  //   Alert.alert(
-  //     "Logout",
-  //     "Are you sure you want to logout?",
-  //     [
-  //       { text: "Cancel", style: "cancel" },
-  //       {
-  //         text: "Logout",
-  //         style: "destructive",
-  //         onPress: async () => {
-  //           await logout();
-  //           router.replace("/login");
-  //         },
-  //       },
-  //     ]
-  //   );
-  // };
+  const handleLogout = () => {
+    Alert.alert(
+      "Logout",
+      "Are you sure you want to logout?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Logout",
+          style: "destructive",
+          onPress: async () => {
+            await logout();
+            router.replace("/login");
+          },
+        },
+      ]
+    );
+  };
 
-  //console.log("Datefil", formatDate(selectedDate));
+  console.log("Datefil", formatDate(selectedDate));
 
   useEffect(() => {
     if (showSearch) {
@@ -421,12 +421,12 @@ export default function HistoryScreen() {
             </TouchableOpacity>
 
             {/* ✅ Logout Button */}
-            {/* <TouchableOpacity
+            <TouchableOpacity
     onPress={handleLogout}
     style={{ marginLeft: 12 }}
   >
     <Ionicons name="log-out-outline" size={22} color="#E74C3C" />
-  </TouchableOpacity> */}
+  </TouchableOpacity>
           </View>
         </View>
 
