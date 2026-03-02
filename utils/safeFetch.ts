@@ -109,8 +109,10 @@ async function refreshOnce(): Promise<TokenPair | null> {
           return null;
         }
 
-        await saveTokens(data.access_token);
-
+await saveTokens(
+  data.access_token,
+  data.refresh_token
+);
         return {
           access_token: data.access_token,
           refresh_token,
