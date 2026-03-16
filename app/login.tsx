@@ -16,8 +16,7 @@ import { Image } from "react-native";
 import * as LocalAuthentication from "expo-local-authentication";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { loginUser } from "@/utils/api";
-import { hasValidSession } from "@/utils/safeFetch";
-
+import { refreshSession } from "@/utils/safeFetch";
 // No longer importing MaterialCommunityIcons if you're using Image component for biometric icon
 // import { MaterialCommunityIcons } from "@expo/vector-icons";
 
@@ -90,11 +89,10 @@ export default function LoginScreen() {
             promptMessage: "Authenticate with Biometrics",
             fallbackLabel: "Use passcode",
           });
-
           if (result.success) {
-            const hasSession = await hasValidSession();
+            const refreshed = await refreshSession();
 
-            if (hasSession) {
+            if (refreshed) {
               router.replace("/(tabs)/home");
             } else {
               Alert.alert(
@@ -102,12 +100,6 @@ export default function LoginScreen() {
                 "Please login with email and password again.",
               );
             }
-          } else {
-            // If auto-authentication fails, allow manual login
-            Alert.alert(
-              "Authentication Failed",
-              "Biometric auto-login unsuccessful. Please use email and password.",
-            );
           }
         }
       }
@@ -159,9 +151,9 @@ export default function LoginScreen() {
       fallbackLabel: "Use passcode",
     });
     if (result.success) {
-      const hasSession = await hasValidSession();
+      const refreshed = await refreshSession();
 
-      if (hasSession) {
+      if (refreshed) {
         router.replace("/(tabs)/home");
       } else {
         Alert.alert("Session Expired", "Please login manually.");

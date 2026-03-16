@@ -58,6 +58,10 @@ async function getRefresh() {
 /* ============================= */
 /* ===== LOGOUT =============== */
 /* ============================= */
+export async function refreshSession(): Promise<boolean> {
+  const refreshed = await refreshOnce();
+  return !!refreshed?.access_token;
+}
 
 export async function logout(): Promise<void> {
   const refresh_token = await getRefresh();
@@ -192,7 +196,7 @@ export async function safeFetch(
 
   return res;
 }
-export async function hasValidSession(): Promise<boolean> {
-  const refresh = await getRefresh();
-  return !!refresh;
-}
+// export async function hasValidSession(): Promise<boolean> {
+//   const refresh = await getRefresh();
+//   return !!refresh;
+// }
