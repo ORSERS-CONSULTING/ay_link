@@ -25,10 +25,7 @@ let inFlightRefresh: Promise<TokenPair | null> | null = null;
 /* ===== TOKEN STORAGE ========= */
 /* ============================= */
 
-export async function saveTokens(
-  access: string,
-  refresh?: string | null,
-) {
+export async function saveTokens(access: string, refresh?: string | null) {
   if (access) {
     await SecureStore.setItemAsync(ACCESS_KEY, access, {
       keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
@@ -113,13 +110,10 @@ async function refreshOnce(): Promise<TokenPair | null> {
           return null;
         }
 
-await saveTokens(
-  data.access_token,
-  data.refresh_token
-);
+        await saveTokens(data.access_token, data.refresh_token);
         return {
           access_token: data.access_token,
-          refresh_token,
+          refresh_token: data.refresh_token ?? refresh_token,
         };
       } catch {
         return null;
@@ -174,8 +168,7 @@ export async function safeFetch(
     },
   });
 
-  const isAuthFail = (status: number) =>
-    status === 401 || status === 403;
+  const isAuthFail = (status: number) => status === 401 || status === 403;
 
   // 1️⃣ First attempt
   let res = await fetch(url, withAuth(access));
