@@ -92,15 +92,19 @@ async function refreshOnce(): Promise<TokenPair | null> {
       const device_id = await getDeviceId();
 
       try {
-        const res = await fetch(`${BACKEND_URL}/auth/refresh`, {
+        const res = await fetch(`${BACKEND_URL}/refresh`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ refresh_token, device_id }),
         });
+      
+        if (res.status === 401 || res.status === 403) {
+          await logout(); // refresh token truly invalid
+          return null;
+        }
 
         if (!res.ok) {
-          await logout();
-          return null;
+          return null; // temporary failure, keep tokens
         }
 
         const data: TokenPair = await res.json();
@@ -110,7 +114,10 @@ async function refreshOnce(): Promise<TokenPair | null> {
           return null;
         }
 
-        await saveTokens(data.access_token, data.refresh_token);
+
+        const newRefresh = data.refresh_token ?? refresh_token;
+
+        await saveTokens(data.access_token, newRefresh);
         return {
           access_token: data.access_token,
           refresh_token: data.refresh_token ?? refresh_token,
@@ -182,8 +189,8 @@ export async function safeFetch(
     res = await fetch(url, withAuth(refreshed.access_token));
   }
 
-  // 3️⃣ Still failing → logout
-  if (res.status === 401) {
+  // 3️⃣ Only logout if refresh already failed
+  if (res.status === 401 && !refreshed?.access_token) {
     await logout();
   }
 

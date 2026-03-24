@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import { safeFetch, saveTokens } from "@/utils/safeFetch";
 import { getDeviceId } from "./device";
+import * as SecureStore from "expo-secure-store";
 
 const BACKEND_URL = Constants.expoConfig?.extra?.BACKEND_URL ?? "";
 export const fetchClientRequests = async () => {
