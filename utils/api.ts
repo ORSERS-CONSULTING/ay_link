@@ -102,7 +102,6 @@ export async function fetchTransactionStats(companyCode: string) {
     }
   );
 }
-
 export async function loginUser(username: string, password: string) {
   const device_id = await getDeviceId();
 
