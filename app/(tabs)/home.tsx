@@ -230,28 +230,63 @@ export default function HomeScreen() {
     setRejectionNote("");
   };
 
+  // const handleSendBack = async () => {
+  //   if (!selectedClient || !additionalInfo.trim()) return;
+
+  //   try {
+  //     await sendBackRequest(selectedClient.id, additionalInfo.trim());
+
+  //     Toast.show({
+  //       type: "success",
+  //       text1: "Request sent for additional info!",
+  //     });
+
+  //     // Optionally refresh data from backend
+  //     await loadClientsAndChartData();
+  //   } catch (error) {
+  //     Toast.show({ type: "error", text1: "Failed to send request back." });
+  //   }
+
+  //   setShowInfoModal(false);
+  //   setAdditionalInfo("");
+  //   setSelectedClient(null);
+  // };
+
   const handleSendBack = async () => {
-    if (!selectedClient || !additionalInfo.trim()) return;
+  console.log("🚀 SendBack clicked");
 
-    try {
-      await sendBackRequest(selectedClient.id, additionalInfo.trim());
+  if (!selectedClient || !additionalInfo.trim()) {
+    console.log("⛔ SendBack blocked (missing data)");
+    return;
+  }
 
-      Toast.show({
-        type: "success",
-        text1: "Request sent for additional info!",
-      });
+  try {
+    console.log("📡 Sending request...", selectedClient.id);
 
-      // Optionally refresh data from backend
-      await loadClientsAndChartData();
-    } catch (error) {
-      Toast.show({ type: "error", text1: "Failed to send request back." });
-    }
+    await sendBackRequest(selectedClient.id, additionalInfo.trim());
 
-    setShowInfoModal(false);
-    setAdditionalInfo("");
-    setSelectedClient(null);
-  };
+    console.log("✅ SendBack success");
 
+    Toast.show({
+      type: "success",
+      text1: "Request sent for additional info!",
+    });
+
+    console.log("🔄 Reloading data...");
+    await loadClientsAndChartData();
+
+    console.log("✅ Reload complete");
+  } catch (error) {
+    console.log("❌ SendBack error:", error);
+    Toast.show({ type: "error", text1: "Failed to send request back." });
+  }
+
+  console.log("🧹 Cleaning state");
+
+  setShowInfoModal(false);
+  setAdditionalInfo("");
+  setSelectedClient(null);
+};
   const isSameDate = (d1: string, d2: Date) =>
     new Date(d1).toDateString() === new Date(d2).toDateString();
 

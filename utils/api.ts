@@ -49,7 +49,7 @@ export async function approveRequest(requestId: string) {
   const approver = await AsyncStorage.getItem("email");
 
   const res = await safeFetch(
-    `/approve?request_id=${requestId}&approver_name=${encodeURIComponent(
+    `/approve2?request_id=${requestId}&approver_name=${encodeURIComponent(
       approver || "unknown",
     )}`,
     { method: "POST" },
@@ -64,7 +64,7 @@ export async function rejectRequest(requestId: string, comment: string) {
   const approver = await AsyncStorage.getItem("email");
 
   const res = await safeFetch(
-    `/reject?request_id=${requestId}&rejection_comment=${encodeURIComponent(
+    `/reject2?request_id=${requestId}&rejection_comment=${encodeURIComponent(
       comment,
     )}&approver_name=${encodeURIComponent(approver || "unknown")}`,
     { method: "POST" },
@@ -77,7 +77,7 @@ export async function rejectRequest(requestId: string, comment: string) {
 
 export async function sendBackRequest(requestId: string, remarks: string) {
   const res = await safeFetch(
-    `/sendBack?request_id=${requestId}&returned_remarks=${encodeURIComponent(
+    `/sendBack2?request_id=${requestId}&returned_remarks=${encodeURIComponent(
       remarks,
     )}`,
     { method: "POST" },
@@ -106,7 +106,7 @@ export async function loginUser(username: string, password: string) {
   const device_id = await getDeviceId();
 
   const res = await fetch(
-    `${BACKEND_URL}/userAuthentication?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`,
+    `${BACKEND_URL}/userAuthentication2?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`,
     {
       method: "POST",
       headers: {

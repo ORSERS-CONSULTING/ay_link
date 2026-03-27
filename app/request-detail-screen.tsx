@@ -61,32 +61,13 @@ export default function RequestDetailScreen() {
     loadStats();
   }, [selectedRequest?.companyCode]);
 
-  if (!selectedRequest) {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <Text style={{ color: "#fff", textAlign: "center", marginTop: 50 }}>
-          No request selected.
-        </Text>
-      </SafeAreaView>
-    );
-  }
+  // ✅ ALWAYS derive safely from selectedRequest
+  const status = selectedRequest?.status ?? "Pending";
+  const decisionTime = selectedRequest?.decisionTime ?? null;
+  const approver = selectedRequest?.approver ?? null;
+  const existingRejectionNote = selectedRequest?.rejectionNote ?? "";
 
-  const {
-    clientName,
-    companyCode,
-    departmentName,
-    requestedAmount,
-    status,
-    timestamp,
-    decisionTime,
-    approver,
-    rejectionNote: existingRejectionNote,
-    reason,
-    name,
-    outstandingBalance,
-    creditLimit,
-  } = selectedRequest;
-
+  // ✅ hooks use SAFE values (no TS error)
   const [localStatus, setLocalStatus] = useState(status);
   const [localDecisionTime, setLocalDecisionTime] = useState(decisionTime);
   const [localApprover, setLocalApprover] = useState(approver);
@@ -95,6 +76,29 @@ export default function RequestDetailScreen() {
   );
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // ✅ THEN guard AFTER hooks
+  if (!selectedRequest) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <Text style={{ textAlign: "center", marginTop: 50 }}>
+          No request selected.
+        </Text>
+      </SafeAreaView>
+    );
+  }
+
+  // ✅ NOW safe to destructure
+  const {
+    clientName,
+    companyCode,
+    departmentName,
+    requestedAmount,
+    timestamp,
+    reason,
+    name,
+    outstandingBalance,
+    creditLimit,
+  } = selectedRequest;
   // const { approvedAmount, rejectedAmount } = getClientSummary(clientName);
   const loadClientsAndChartData = async () => {
     try {
@@ -248,7 +252,6 @@ export default function RequestDetailScreen() {
 
       // Delay resetting the selectedRequest to avoid conflicting renders
       setTimeout(() => {
-        setSelectedRequest(null);
         router.back(); // 👈 optionally navigate away after
       }, 100);
     } catch (error) {

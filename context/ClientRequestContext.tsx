@@ -73,12 +73,28 @@ export const ClientRequestProvider = ({
   );
 };
 
+// export const useClientRequests = () => {
+//   const context = useContext(ClientRequestContext);
+//   if (!context) {
+//     throw new Error(
+//       "useClientRequests must be used within a ClientRequestProvider"
+//     );
+//   }
+//   return context;
+// };
 export const useClientRequests = () => {
   const context = useContext(ClientRequestContext);
+
+  console.log("🧠 useClientRequests hook called");
+
   if (!context) {
+    console.log("❌ Context is undefined!");
     throw new Error(
       "useClientRequests must be used within a ClientRequestProvider"
     );
   }
+
+  console.log("🧠 Context OK, requests:", context.requests.length);
+
   return context;
 };
