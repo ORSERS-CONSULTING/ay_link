@@ -193,7 +193,7 @@ export default function HomeScreen() {
           approver: username || "You",
         });
 
-        await loadClientsAndChartData();
+        // await loadClientsAndChartData();
       }
 
       if (selectedAction === "reject") {
@@ -208,7 +208,7 @@ export default function HomeScreen() {
           rejectionNote: rejectionNote.trim(),
         });
 
-        await loadClientsAndChartData();
+        // await loadClientsAndChartData();
       }
 
       setShowConfirm(false);
@@ -260,7 +260,7 @@ const handleSendBack = async () => {
       text1: "Request sent for additional info!",
     });
 
-    await loadClientsAndChartData();
+    // await loadClientsAndChartData();
   } catch (error) {
     Toast.show({
       type: "error",

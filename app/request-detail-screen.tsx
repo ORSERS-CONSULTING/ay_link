@@ -170,7 +170,7 @@ export default function RequestDetailScreen() {
       }
 
       // Reload request list and chart data
-      await loadClientsAndChartData();
+      // await loadClientsAndChartData();
 
       // Get the updated request from backend
       const refreshedRequests = await fetchClientRequests();
@@ -256,7 +256,7 @@ export default function RequestDetailScreen() {
         approver: "You",
       });
 
-      await loadClientsAndChartData();
+      // await loadClientsAndChartData();
 
       setShowInfoModal(false);
       setAdditionalInfo("");

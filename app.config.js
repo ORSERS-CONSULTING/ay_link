@@ -4,7 +4,7 @@ export default {
   expo: {
     name: "AYLINK",
     slug: "creditApp",
-    version: "1.0.3",
+    version: "1.0.4",
     orientation: "portrait",
     icon: "./assets/images/logo.png",
     scheme: "myapp",
@@ -16,7 +16,7 @@ export default {
       backgroundColor: "#ffffff",
     },
     ios: {
-      buildNumber: "4",
+      buildNumber: "5",
       supportsTablet: true,
       bundleIdentifier: "com.tenioduola.aylink",
       infoPlist: {
@@ -73,7 +73,7 @@ export default {
     },
     extra: {
       BACKEND_URL: process.env.BACKEND_URL,
- 
+
       router: {
         origin: false,
       },
