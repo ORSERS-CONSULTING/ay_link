@@ -85,6 +85,7 @@ export default function HomeScreen() {
     useClientRequests();
   const [isNavigating, setIsNavigating] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     if (showSearch) {
@@ -99,7 +100,7 @@ export default function HomeScreen() {
 
       const formattedClients: ClientRequest[] = response
         .filter(
-          (item: any) => item.status === "PENDING" || item.status === "ON HOLD"
+          (item: any) => item.status === "PENDING" || item.status === "ON HOLD",
         )
         .map((item: any) => ({
           id: item.request_id.toString(),
@@ -135,8 +136,8 @@ export default function HomeScreen() {
       setRequests(
         formattedClients.sort(
           (a, b) =>
-            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-        )
+            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+        ),
       );
 
       // ✅ Update chart data (local)
@@ -173,14 +174,9 @@ export default function HomeScreen() {
   }, [showConfirm]);
 
   const handleConfirmAction = async () => {
-    if (!selectedClient) return;
+    if (!selectedClient || isProcessing) return;
 
-    // console.log(
-    //   "➡️ Starting confirm action:",
-    //   selectedAction,
-    //   "for ID:",
-    //   selectedClient.id
-    // );
+    setIsProcessing(true);
 
     try {
       const now = new Date().toISOString().split(".")[0];
@@ -189,45 +185,42 @@ export default function HomeScreen() {
         Toast.show({ type: "info", text1: "Sending approval..." });
 
         const username = await AsyncStorage.getItem("email");
-        const result = await approveRequest(selectedClient.id);
-        //console.log("✅ Approve response:", result);
+        await approveRequest(selectedClient.id);
 
         Toast.show({ type: "success", text1: "Request approved!" });
         updateRequestStatus(selectedClient.id, "Approved", {
-          decisionTime: now, // ✅ used only for frontend display
+          decisionTime: now,
           approver: username || "You",
         });
 
-        loadClientsAndChartData();
+        await loadClientsAndChartData();
       }
 
       if (selectedAction === "reject") {
         Toast.show({ type: "info", text1: "Sending rejection..." });
 
-        const result = await rejectRequest(
-          selectedClient.id,
-          rejectionNote.trim() // ✅ removed `now`
-        );
-        // console.log("✅ Reject response:", result);
+        await rejectRequest(selectedClient.id, rejectionNote.trim());
 
         Toast.show({ type: "success", text1: "Request rejected!" });
         updateRequestStatus(selectedClient.id, "Rejected", {
-          decisionTime: now, // ✅ for UI only
+          decisionTime: now,
           approver: "You",
           rejectionNote: rejectionNote.trim(),
         });
 
-        loadClientsAndChartData();
+        await loadClientsAndChartData();
       }
+
+      setShowConfirm(false);
+      setSelectedClient(null);
+      setSelectedAction("");
+      setRejectionNote("");
     } catch (error) {
       console.error("❌ Action failed:", error);
       Toast.show({ type: "error", text1: "Action failed. Try again." });
+    } finally {
+      setIsProcessing(false);
     }
-
-    setShowConfirm(false);
-    setSelectedClient(null);
-    setSelectedAction("");
-    setRejectionNote("");
   };
 
   // const handleSendBack = async () => {
@@ -252,40 +245,34 @@ export default function HomeScreen() {
   //   setSelectedClient(null);
   // };
 
-  const handleSendBack = async () => {
-  console.log("🚀 SendBack clicked");
-
-  if (!selectedClient || !additionalInfo.trim()) {
-    console.log("⛔ SendBack blocked (missing data)");
+const handleSendBack = async () => {
+  if (!selectedClient || !additionalInfo.trim() || isProcessing) {
     return;
   }
 
+  setIsProcessing(true);
+
   try {
-    console.log("📡 Sending request...", selectedClient.id);
-
     await sendBackRequest(selectedClient.id, additionalInfo.trim());
-
-    console.log("✅ SendBack success");
 
     Toast.show({
       type: "success",
       text1: "Request sent for additional info!",
     });
 
-    console.log("🔄 Reloading data...");
     await loadClientsAndChartData();
-
-    console.log("✅ Reload complete");
   } catch (error) {
-    console.log("❌ SendBack error:", error);
-    Toast.show({ type: "error", text1: "Failed to send request back." });
+    Toast.show({
+      type: "error",
+      text1: "Failed to send request back.",
+    });
+  } finally {
+    setIsProcessing(false);
+
+    setShowInfoModal(false);
+    setAdditionalInfo("");
+    setSelectedClient(null);
   }
-
-  console.log("🧹 Cleaning state");
-
-  setShowInfoModal(false);
-  setAdditionalInfo("");
-  setSelectedClient(null);
 };
   const isSameDate = (d1: string, d2: Date) =>
     new Date(d1).toDateString() === new Date(d2).toDateString();
@@ -314,21 +301,20 @@ export default function HomeScreen() {
 
   const toggleExpanded = (id: string) => {
     setExpandedReasonIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
     );
   };
 
   const getTimeAgo = (timestamp: string) => {
-  const date = new Date(timestamp);
-  const now = new Date();
+    const date = new Date(timestamp);
+    const now = new Date();
 
-  const isSameDay = date.toDateString() === now.toDateString();
+    const isSameDay = date.toDateString() === now.toDateString();
 
-  return isSameDay
-    ? date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-    : date.toLocaleDateString("en-GB");
-};
-
+    return isSameDay
+      ? date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      : date.toLocaleDateString("en-GB");
+  };
 
   const handleLogoutPress = () => {
     setShowLogoutModal(true);
@@ -339,7 +325,7 @@ export default function HomeScreen() {
 
     try {
       const isDeviceInitialized = await AsyncStorage.getItem(
-        "isDeviceCapableAndInitializedForBiometrics"
+        "isDeviceCapableAndInitializedForBiometrics",
       );
 
       await AsyncStorage.removeItem("userToken");
@@ -347,7 +333,7 @@ export default function HomeScreen() {
       if (isDeviceInitialized === "true") {
         await AsyncStorage.setItem(
           "isDeviceCapableAndInitializedForBiometrics",
-          "true"
+          "true",
         );
       }
 
@@ -373,10 +359,10 @@ export default function HomeScreen() {
             item.status === "Approved"
               ? styles.chipApproved
               : item.status === "Rejected"
-              ? styles.chipRejected
-              : item.status === "On hold"
-              ? styles.chipOnHold
-              : styles.chipPending,
+                ? styles.chipRejected
+                : item.status === "On hold"
+                  ? styles.chipOnHold
+                  : styles.chipPending,
           ]}
         >
           <Text style={styles.chipText}>{item.status.toUpperCase()}</Text>
@@ -412,7 +398,10 @@ export default function HomeScreen() {
 
       <View style={styles.actionRow}>
         <TouchableOpacity
+          disabled={isProcessing}
+          style={{ opacity: isProcessing ? 0.5 : 1 }}
           onPress={() => {
+            if (isProcessing) return;
             setSelectedClient(item);
             setShowInfoModal(true);
           }}
@@ -422,11 +411,16 @@ export default function HomeScreen() {
 
         <View style={styles.actionButtons}>
           <TouchableOpacity
+            disabled={isProcessing}
             style={[
               styles.iconButton,
-              { backgroundColor: "rgba(198, 40, 40, 0.1)" },
+              {
+                opacity: isProcessing ? 0.5 : 1,
+                backgroundColor: "rgba(198, 40, 40, 0.1)",
+              },
             ]}
             onPress={() => {
+              if (isProcessing) return;
               setSelectedAction("reject");
               setSelectedClient(item);
               setShowConfirm(true);
@@ -440,11 +434,16 @@ export default function HomeScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
+            disabled={isProcessing}
             style={[
               styles.iconButton,
-              { backgroundColor: "rgba(46, 125, 50, 0.1)" },
+              {
+                opacity: isProcessing ? 0.5 : 1,
+                backgroundColor: "rgba(46, 125, 50, 0.1)",
+              },
             ]}
             onPress={() => {
+              if (isProcessing) return;
               setSelectedAction("accept");
               setSelectedClient(item);
               setShowConfirm(true);
@@ -506,11 +505,16 @@ export default function HomeScreen() {
 
               <View style={styles.confirmActions}>
                 <TouchableOpacity
+                  disabled={isProcessing}
                   style={[
                     styles.confirmBtn,
-                    { backgroundColor: "rgba(153, 153, 153, 0.1)" },
+                    {
+                      opacity: isProcessing ? 0.5 : 1,
+                      backgroundColor: "rgba(153, 153, 153, 0.1)",
+                    },
                   ]}
                   onPress={() => {
+                    if (isProcessing) return;
                     setShowConfirm(false);
                     setSelectedClient(null);
                     setSelectedAction("");
@@ -529,9 +533,11 @@ export default function HomeScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
+                  disabled={isProcessing}
                   style={[
                     styles.confirmBtn,
                     {
+                      opacity: isProcessing ? 0.5 : 1,
                       backgroundColor:
                         selectedAction === "accept"
                           ? "rgba(46, 125, 50, 0.1)"
@@ -548,7 +554,11 @@ export default function HomeScreen() {
                       fontSize: 14,
                     }}
                   >
-                    {selectedAction === "accept" ? "APPROVE" : "REJECT"}
+                    {isProcessing
+                      ? "PROCESSING..."
+                      : selectedAction === "accept"
+                        ? "APPROVE"
+                        : "REJECT"}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -593,24 +603,30 @@ export default function HomeScreen() {
                     Cancel
                   </Text>
                 </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.confirmBtn,
-                    { backgroundColor: "rgba(25, 118, 210, 0.1)" },
-                  ]}
-                  onPress={handleSendBack}
-                >
-                  <Text
-                    style={{
-                      color: "#1976D2",
-                      fontWeight: "bold",
-                      fontSize: 14,
-                    }}
-                  >
-                    Send
-                  </Text>
-                </TouchableOpacity>
+<TouchableOpacity
+  disabled={isProcessing}
+  style={[
+    styles.confirmBtn,
+    {
+      opacity: isProcessing ? 0.5 : 1,
+      backgroundColor: "rgba(25, 118, 210, 0.1)",
+    },
+  ]}
+  onPress={() => {
+    if (isProcessing) return;
+    handleSendBack();
+  }}
+>
+  <Text
+    style={{
+      color: "#1976D2",
+      fontWeight: "bold",
+      fontSize: 14,
+    }}
+  >
+    {isProcessing ? "SENDING..." : "SEND"}
+  </Text>
+</TouchableOpacity>
               </View>
             </View>
           </View>
@@ -1070,7 +1086,7 @@ export default function HomeScreen() {
               .sort(
                 (a, b) =>
                   new Date(b.timestamp).getTime() -
-                  new Date(a.timestamp).getTime()
+                  new Date(a.timestamp).getTime(),
               )
               .map((item) => (
                 <View key={item.id} style={{ marginTop: 12 }}>

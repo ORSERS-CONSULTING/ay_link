@@ -155,13 +155,16 @@ export default function RequestDetailScreen() {
   };
   const handleConfirmAction = async () => {
     if (!selectedRequest || isProcessing) return;
+
     setIsProcessing(true);
 
     try {
       if (selectedAction === "accept") {
+        Toast.show({ type: "info", text1: "Sending approval..." });
         await approveRequest(selectedRequest.id);
         Toast.show({ type: "success", text1: "Request approved!" });
       } else if (selectedAction === "reject") {
+        Toast.show({ type: "info", text1: "Sending rejection..." });
         await rejectRequest(selectedRequest.id, rejectionNote.trim());
         Toast.show({ type: "success", text1: "Request rejected!" });
       }
@@ -215,28 +218,28 @@ export default function RequestDetailScreen() {
           decisionTime: updated.decision_time || null,
           approver: updated.approver || null,
           name:
-            updated.name
-              ?.replace(/\s+/g, " ")
-              .replace(/\u00A0/g, " ")
-              .trim() || "",
+            updated.name?.replace(/\s+/g, " ").replace(/ /g, " ").trim() || "",
         });
       }
+
+      setShowConfirm(false);
+      setSelectedAction("");
+      setRejectionNote("");
     } catch (error) {
       console.error(error);
       Toast.show({ type: "error", text1: "Action failed. Please try again." });
+    } finally {
+      setIsProcessing(false);
     }
-
-    setIsProcessing(false);
-    setShowConfirm(false);
-    setSelectedAction("");
-    setRejectionNote("");
   };
 
   const handleSendBack = async () => {
-    if (!selectedRequest || !additionalInfo.trim()) {
+    if (!selectedRequest || !additionalInfo.trim() || isProcessing) {
       Toast.show({ type: "error", text1: "Please enter a message." });
       return;
     }
+
+    setIsProcessing(true);
 
     try {
       await sendBackRequest(selectedRequest.id, additionalInfo.trim());
@@ -246,17 +249,30 @@ export default function RequestDetailScreen() {
         text1: "Request sent back for more info!",
       });
 
+      setLocalStatus("On hold");
+
+      updateRequestStatus(selectedRequest.id, "On hold", {
+        decisionTime: new Date().toISOString(),
+        approver: "You",
+      });
+
       await loadClientsAndChartData();
+
       setShowInfoModal(false);
       setAdditionalInfo("");
 
-      // Delay resetting the selectedRequest to avoid conflicting renders
       setTimeout(() => {
-        router.back(); // 👈 optionally navigate away after
+        router.back();
       }, 100);
     } catch (error) {
       console.error("Failed to send back request:", error);
-      Toast.show({ type: "error", text1: "Failed to send request back." });
+
+      Toast.show({
+        type: "error",
+        text1: "Failed to send request back.",
+      });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -476,11 +492,16 @@ export default function RequestDetailScreen() {
               <View style={styles.divider} />
               <View style={styles.statusRow}>
                 <TouchableOpacity
+                  disabled={isProcessing}
                   style={[
                     styles.iconButton,
-                    { backgroundColor: "rgba(198, 40, 40, 0.1)" },
+                    {
+                      opacity: isProcessing ? 0.5 : 1,
+                      backgroundColor: "rgba(198, 40, 40, 0.1)",
+                    },
                   ]}
                   onPress={() => {
+                    if (isProcessing) return;
                     setSelectedAction("reject");
                     setShowConfirm(true);
                   }}
@@ -491,11 +512,16 @@ export default function RequestDetailScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
+                  disabled={isProcessing}
                   style={[
                     styles.iconButton,
-                    { backgroundColor: "rgba(25, 118, 210, 0.1)" },
+                    {
+                      opacity: isProcessing ? 0.5 : 1,
+                      backgroundColor: "rgba(25, 118, 210, 0.1)",
+                    },
                   ]}
                   onPress={() => {
+                    if (isProcessing) return;
                     setShowInfoModal(true);
                   }}
                 >
@@ -505,11 +531,16 @@ export default function RequestDetailScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
+                  disabled={isProcessing}
                   style={[
                     styles.iconButton,
-                    { backgroundColor: "rgba(46, 125, 50, 0.1)" },
+                    {
+                      opacity: isProcessing ? 0.5 : 1,
+                      backgroundColor: "rgba(46, 125, 50, 0.1)",
+                    },
                   ]}
                   onPress={() => {
+                    if (isProcessing) return;
                     setSelectedAction("accept");
                     setShowConfirm(true);
                   }}
@@ -621,11 +652,16 @@ export default function RequestDetailScreen() {
 
               <View style={styles.confirmActions}>
                 <TouchableOpacity
+                  disabled={isProcessing}
                   style={[
                     styles.confirmBtn,
-                    { backgroundColor: "rgba(153, 153, 153, 0.1)" },
+                    {
+                      opacity: isProcessing ? 0.5 : 1,
+                      backgroundColor: "rgba(153, 153, 153, 0.1)",
+                    },
                   ]}
                   onPress={() => {
+                    if (isProcessing) return;
                     setShowConfirm(false);
                     setSelectedAction("");
                     setRejectionNote("");
@@ -643,9 +679,11 @@ export default function RequestDetailScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
+                  disabled={isProcessing}
                   style={[
                     styles.confirmBtn,
                     {
+                      opacity: isProcessing ? 0.5 : 1,
                       backgroundColor:
                         selectedAction === "accept"
                           ? "rgba(46, 125, 50, 0.1)"
@@ -662,7 +700,11 @@ export default function RequestDetailScreen() {
                       fontSize: 14,
                     }}
                   >
-                    {selectedAction === "accept" ? "APPROVE" : "REJECT"}
+                    {isProcessing
+                      ? "PROCESSING..."
+                      : selectedAction === "accept"
+                        ? "APPROVE"
+                        : "REJECT"}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -692,28 +734,44 @@ export default function RequestDetailScreen() {
 
               <View style={styles.confirmActions}>
                 <TouchableOpacity
+                  disabled={isProcessing}
                   style={[
                     styles.confirmBtn,
-                    { backgroundColor: "rgba(153, 153, 153, 0.1)" },
+                    {
+                      opacity: isProcessing ? 0.5 : 1,
+                      backgroundColor: "rgba(153, 153, 153, 0.1)",
+                    },
                   ]}
                   onPress={() => {
+                    if (isProcessing) return;
                     setShowInfoModal(false);
                     setAdditionalInfo("");
                   }}
                 >
                   <Text
-                    style={{ color: "#666", fontWeight: "bold", fontSize: 14 }}
+                    style={{
+                      color: "#666",
+                      fontWeight: "bold",
+                      fontSize: 14,
+                    }}
                   >
-                    Cancel
+                    CANCEL
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
+                  disabled={isProcessing}
                   style={[
                     styles.confirmBtn,
-                    { backgroundColor: "rgba(25, 118, 210, 0.1)" },
+                    {
+                      opacity: isProcessing ? 0.5 : 1,
+                      backgroundColor: "rgba(25, 118, 210, 0.1)",
+                    },
                   ]}
-                  onPress={handleSendBack}
+                  onPress={() => {
+                    if (isProcessing) return;
+                    handleSendBack();
+                  }}
                 >
                   <Text
                     style={{
@@ -722,7 +780,7 @@ export default function RequestDetailScreen() {
                       fontSize: 14,
                     }}
                   >
-                    Send
+                    {isProcessing ? "SENDING..." : "SEND"}
                   </Text>
                 </TouchableOpacity>
               </View>

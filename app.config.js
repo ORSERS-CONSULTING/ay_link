@@ -73,11 +73,7 @@ export default {
     },
     extra: {
       BACKEND_URL: process.env.BACKEND_URL,
-      API_SECRET: process.env.API_SECRET,
-      CLIENT_ID: process.env.CLIENT_ID,
-      CLIENT_SECRET: process.env.CLIENT_SECRET,
-      ACCESS_TOKEN_URL: process.env.ACCESS_TOKEN_URL,
-      BASE_SCOPE_URL: process.env.BASE_SCOPE_URL,
+ 
       router: {
         origin: false,
       },
